@@ -1,0 +1,43 @@
+{
+  "name": "finance-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "prepare": "husky",
+    "lint:backend": "cd backend && npm run lint",
+    "lint:frontend": "cd frontend && npm run lint",
+    "lint": "npm run lint:backend && npm run lint:frontend",
+    "typecheck:backend": "cd backend && tsc --noEmit",
+    "typecheck:frontend": "cd frontend && tsc --noEmit",
+    "typecheck": "npm run typecheck:backend && npm run typecheck:frontend",
+    "audit:backend": "cd backend && npm audit --audit-level=high",
+    "audit:frontend": "cd frontend && npm audit --audit-level=high",
+    "audit": "npm run audit:backend && npm run audit:frontend",
+    "secrets:scan": "gitleaks detect --source=. --config=.gitleaks.toml --no-git",
+    "secrets:baseline": "detect-secrets scan --all-files > .secrets.baseline",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:debug": "playwright test --debug",
+    "test:e2e:report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.44.0",
+    "husky": "^9.0.11",
+    "lint-staged": "^15.2.2"
+  },
+  "lint-staged": {
+    "backend/**/*.{ts,js}": [
+      "cd backend && eslint --fix --max-warnings=0"
+    ],
+    "frontend/src/**/*.{ts,tsx}": [
+      "cd frontend && eslint --fix --max-warnings=0"
+    ],
+    "**/*.{ts,tsx,js,json}": [
+      "detect-secrets-hook --baseline .secrets.baseline"
+    ]
+  }
+}

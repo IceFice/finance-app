@@ -1,0 +1,29 @@
+# syntax=docker/dockerfile:1.7
+
+# ── Development stage ─────────────────────────────────────────────────────────
+FROM node:20-alpine
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs && \
+    adduser  -u 1001 -S nodejs -G nodejs
+
+WORKDIR /app
+
+# Copy package files
+COPY package.json package-lock.json ./
+
+# Install all dependencies (including dev)
+# Use npm install instead of npm ci to handle lock file drift during development
+RUN npm install --ignore-scripts
+
+# Copy source and config
+COPY tsconfig.json ./
+COPY src ./src
+
+# Drop to non-root user
+USER nodejs
+
+# Expose application port
+EXPOSE 4000
+
+CMD ["node_modules/.bin/tsx", "watch", "src/server.ts"]

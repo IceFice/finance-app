@@ -1,0 +1,185 @@
+name: Security Gates
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  # ── Secret scanning ────────────────────────────────────────────────────────
+  gitleaks:
+    name: Secret Scan (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}  # needed for org repos
+
+  # ── Dependency vulnerability audit ────────────────────────────────────────
+  npm-audit:
+    name: Dependency Audit (npm audit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Audit backend dependencies
+        working-directory: backend
+        run: |
+          npm ci --ignore-scripts
+          npm audit --audit-level=high --json | tee audit-backend.json
+          npm audit --audit-level=high
+
+      - name: Audit frontend dependencies
+        working-directory: frontend
+        run: |
+          npm ci --ignore-scripts
+          npm audit --audit-level=high --json | tee audit-frontend.json
+          npm audit --audit-level=high
+
+      - name: Upload audit reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-audit-reports
+          path: |
+            backend/audit-backend.json
+            frontend/audit-frontend.json
+          retention-days: 30
+
+  # ── ESLint security check ─────────────────────────────────────────────────
+  eslint:
+    name: ESLint Security Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci --ignore-scripts
+
+      - name: Lint backend
+        working-directory: backend
+        run: npm run lint
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci --ignore-scripts
+
+      - name: Lint frontend
+        working-directory: frontend
+        run: npm run lint
+
+  # ── TypeScript type check ─────────────────────────────────────────────────
+  typecheck:
+    name: TypeScript Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci --ignore-scripts
+
+      - name: Type-check backend
+        working-directory: backend
+        run: npm run typecheck
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci --ignore-scripts
+
+      - name: Type-check frontend
+        working-directory: frontend
+        run: npm run typecheck
+
+  # ── OWASP Dependency-Check ─────────────────────────────────────────────────
+  owasp-dependency-check:
+    name: OWASP Dependency-Check
+    runs-on: ubuntu-latest
+    # Run only on pushes to main/develop to avoid slow checks on every PR
+    if: github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run OWASP Dependency-Check
+        uses: dependency-check/Dependency-Check_Action@main
+        with:
+          project: finance-app
+          path: .
+          format: HTML
+          args: >
+            --enableRetired
+            --failOnCVSS 7
+            --suppression .owasp-suppression.xml
+        env:
+          JAVA_HOME: /opt/jdk
+
+      - name: Upload OWASP report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: owasp-report
+          path: ${{ github.workspace }}/reports
+          retention-days: 30
+
+  # ── SBOM generation ────────────────────────────────────────────────────────
+  sbom:
+    name: Generate SBOM
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install CycloneDX CLI
+        run: npm install -g @cyclonedx/cyclonedx-npm
+
+      - name: Generate backend SBOM
+        working-directory: backend
+        run: |
+          npm ci --ignore-scripts
+          cyclonedx-npm --output-format json --output-file sbom-backend.json
+
+      - name: Generate frontend SBOM
+        working-directory: frontend
+        run: |
+          npm ci --ignore-scripts
+          cyclonedx-npm --output-format json --output-file sbom-frontend.json
+
+      - name: Upload SBOMs
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: |
+            backend/sbom-backend.json
+            frontend/sbom-frontend.json
+          retention-days: 90

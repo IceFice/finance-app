@@ -1,0 +1,76 @@
+# gitleaks configuration for personal finance app
+# Docs: https://github.com/gitleaks/gitleaks
+
+[extend]
+useDefault = true  # includes all default rules (AWS, GCP, GitHub tokens, etc.)
+
+# ── Custom rules for this project ────────────────────────────────────────────
+
+[[rules]]
+id = "jwt-access-secret"
+description = "JWT access secret hardcoded"
+regex = '''(?i)(jwt[_-]?access[_-]?secret\s*[:=]\s*["']?)([a-zA-Z0-9+/]{32,})'''
+secretGroup = 2
+severity = "critical"
+tags = ["jwt", "secret"]
+
+[[rules]]
+id = "jwt-refresh-secret"
+description = "JWT refresh secret hardcoded"
+regex = '''(?i)(jwt[_-]?refresh[_-]?secret\s*[:=]\s*["']?)([a-zA-Z0-9+/]{32,})'''
+secretGroup = 2
+severity = "critical"
+tags = ["jwt", "secret"]
+
+[[rules]]
+id = "postgres-connection-string"
+description = "PostgreSQL connection string with credentials"
+regex = '''postgresql://[^:]+:[^@]{4,}@[a-zA-Z0-9._-]+'''
+severity = "critical"
+tags = ["database", "credentials"]
+
+[[rules]]
+id = "redis-url-with-password"
+description = "Redis URL with embedded password"
+regex = '''redis://[^:]+:[^@]{4,}@[a-zA-Z0-9._-]+'''
+severity = "high"
+tags = ["redis", "credentials"]
+
+[[rules]]
+id = "bcrypt-hash"
+description = "bcrypt hash (may indicate real password in tests)"
+regex = '''\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}'''
+severity = "medium"
+tags = ["password-hash"]
+
+# ── Allowlist (false positives) ───────────────────────────────────────────────
+
+[allowlist]
+description = "Global allowlist for known false positives"
+
+# Allow the dummy bcrypt hash used for timing-safe login
+regexes = [
+  '''\$2b\$12\$invalidhashfortimingprotection''',
+]
+
+# Allow example / placeholder values in documentation
+paths = [
+  '''.env.example''',
+  '''.env.staging.example''',
+  '''.env.production.example''',
+  '''PRODUCTION_CHECKLIST.md''',
+  '''README.md''',
+  '''.*\.test\.ts$''',
+  '''.*\.spec\.ts$''',
+]
+
+# Allow placeholder strings
+commits = []
+stopwords = [
+  "REPLACE_WITH",
+  "PASTE_GENERATED",
+  "YOUR_DB_PASSWORD",
+  "CHANGE_ME",
+  "change-me",
+  "example",
+]

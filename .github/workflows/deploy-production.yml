@@ -1,0 +1,209 @@
+name: Deploy · Production
+
+# Two triggers:
+#   1. Automatic — when CI passes on main (still requires environment approval)
+#   2. Manual    — workflow_dispatch with optional SHA override
+on:
+  workflow_run:
+    workflows: ["CI Pipeline"]
+    branches: [main]
+    types: [completed]
+
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Image tag to deploy (default: latest)"
+        required: false
+        default: "latest"
+      skip_healthcheck:
+        description: "Skip post-deploy health check (emergency only)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  # Gate: CI must have passed for workflow_run trigger
+  check-ci:
+    name: "Gate · CI passed"
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    steps:
+      - name: CI status
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "Manual dispatch — skipping CI conclusion check"
+          else
+            echo "CI conclusion: ${{ github.event.workflow_run.conclusion }}"
+            echo "Proceeding to production deploy ✅"
+          fi
+
+  deploy-production:
+    name: "Deploy → production"
+    runs-on: ubuntu-latest
+    needs: check-ci
+
+    # GitHub Environment with required reviewers configured in repo settings:
+    # Settings → Environments → production → Required reviewers
+    # This creates the manual approval gate before the job runs.
+    environment:
+      name: production
+      url: ${{ vars.PROD_URL }}
+
+    env:
+      IMAGE_TAG: ${{ github.event.inputs.image_tag || 'latest' }}
+
+    steps:
+      - name: Deployment summary
+        run: |
+          echo "## Production Deploy 🚀" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Image tag | \`${{ env.IMAGE_TAG }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Triggered by | \`${{ github.actor }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Commit | \`${{ github.event.workflow_run.head_sha || github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+
+      # ── Zero-downtime deploy via SSH ───────────────────────────────────────
+      - name: Deploy via SSH (zero-downtime)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          port: 22
+          script_stop: true
+          script: |
+            set -euo pipefail
+
+            IMAGE="ghcr.io/${{ github.repository }}/backend:${{ env.IMAGE_TAG }}"
+            DEPLOY_PATH="${{ secrets.PROD_DEPLOY_PATH }}"
+
+            echo "▶ Logging in to GHCR..."
+            echo "${{ secrets.GITHUB_TOKEN }}" | \
+              docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+            echo "▶ Pulling image: $IMAGE"
+            docker pull "$IMAGE"
+
+            cd "$DEPLOY_PATH"
+
+            # ── Zero-downtime swap ───────────────────────────────────────────
+            # 1. Rename running container to "old"
+            OLD_CONTAINER=$(docker compose ps -q backend 2>/dev/null | head -1 || true)
+            if [ -n "$OLD_CONTAINER" ]; then
+              docker rename "$OLD_CONTAINER" "backend-old-$(date +%s)" || true
+            fi
+
+            # 2. Start new container alongside old one
+            echo "▶ Starting new container..."
+            BACKEND_IMAGE="$IMAGE" \
+              docker compose up -d --no-deps --scale backend=1 --no-recreate backend 2>/dev/null || \
+            BACKEND_IMAGE="$IMAGE" \
+              docker compose up -d --no-deps --force-recreate backend
+
+            # 3. Wait for new container to be healthy
+            echo "▶ Waiting for new container to be healthy..."
+            for i in $(seq 1 18); do
+              HTTP_STATUS=$(curl -o /dev/null -s -w "%{http_code}" \
+                "${PROD_HEALTH_URL:-http://localhost:4000}/health" || echo "000")
+              if [ "$HTTP_STATUS" = "200" ]; then
+                echo "  New container healthy ✅ (attempt $i)"
+                break
+              fi
+              echo "  Attempt $i/18 — HTTP $HTTP_STATUS — waiting 5s..."
+              sleep 5
+              if [ "$i" -eq 18 ]; then
+                echo "❌ New container failed health check — rolling back"
+                # Restore old container
+                if [ -n "$OLD_CONTAINER" ]; then
+                  docker start "$OLD_CONTAINER" || true
+                  docker rename "$OLD_CONTAINER" "backend" || true
+                fi
+                docker compose up -d --no-deps --force-recreate backend
+                exit 1
+              fi
+            done
+
+            # 4. Run migrations on the new container
+            echo "▶ Running database migrations..."
+            docker compose exec -T backend npm run migrate
+
+            # 5. Remove old container
+            if [ -n "$OLD_CONTAINER" ]; then
+              echo "▶ Removing old container..."
+              docker stop "$OLD_CONTAINER" 2>/dev/null || true
+              docker rm   "$OLD_CONTAINER" 2>/dev/null || true
+            fi
+
+            # 6. Clean up dangling images
+            docker image prune -f --filter "label=org.opencontainers.image.source=https://github.com/${{ github.repository }}" \
+              2>/dev/null || true
+
+            echo ""
+            echo "✅ Production deploy complete"
+            echo "   Image: $IMAGE"
+            echo "   Host:  ${{ secrets.PROD_HOST }}"
+
+      # ── Post-deploy health check from runner ────────────────────────────────
+      - name: Post-deploy health check
+        if: ${{ github.event.inputs.skip_healthcheck != 'true' }}
+        run: |
+          echo "Running external health check..."
+          for i in $(seq 1 6); do
+            HTTP=$(curl -o /dev/null -s -w "%{http_code}" \
+              "${{ vars.PROD_URL }}/health" 2>/dev/null || echo "000")
+            if [ "$HTTP" = "200" ]; then
+              echo "✅ Production health check passed (HTTP $HTTP)"
+              exit 0
+            fi
+            echo "Attempt $i/6 — HTTP $HTTP"
+            sleep 10
+          done
+          echo "❌ Production health check failed"
+          exit 1
+
+      # ── Slack: success ──────────────────────────────────────────────────────
+      - name: Notify success
+        if: success()
+        run: |
+          curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "text": "✅ *Production deploy succeeded* 🚀",
+              "attachments": [{
+                "color": "good",
+                "fields": [
+                  {"title": "Image tag",    "value": "${{ env.IMAGE_TAG }}", "short": true},
+                  {"title": "Deployed by",  "value": "${{ github.actor }}",  "short": true},
+                  {"title": "URL",          "value": "${{ vars.PROD_URL }}",  "short": true},
+                  {"title": "Run",
+                   "value": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+                   "short": false}
+                ]
+              }]
+            }'
+
+      # ── Slack: failure ──────────────────────────────────────────────────────
+      - name: Notify failure
+        if: failure()
+        run: |
+          curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "text": "🔴 *PRODUCTION DEPLOY FAILED* — immediate attention required",
+              "attachments": [{
+                "color": "danger",
+                "fields": [
+                  {"title": "Image tag",   "value": "${{ env.IMAGE_TAG }}", "short": true},
+                  {"title": "Triggered by","value": "${{ github.actor }}",  "short": true},
+                  {"title": "Run",
+                   "value": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+                   "short": false}
+                ]
+              }]
+            }'

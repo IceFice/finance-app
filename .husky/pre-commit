@@ -1,0 +1,26 @@
+#!/bin/sh
+# Pre-commit security gate
+# Runs: secret detection → lint → typecheck on staged files
+
+set -e
+
+echo "🔍 Running pre-commit security checks..."
+
+# 1. Secret detection on staged files
+echo "  → Scanning for secrets..."
+if command -v detect-secrets-hook >/dev/null 2>&1; then
+  git diff --cached --name-only | xargs detect-secrets-hook --baseline .secrets.baseline 2>/dev/null || {
+    echo "❌ Potential secret detected in staged files!"
+    echo "   Run: detect-secrets audit .secrets.baseline"
+    echo "   If this is a false positive, update the baseline first."
+    exit 1
+  }
+else
+  echo "   ⚠ detect-secrets not installed — skipping (pip install detect-secrets)"
+fi
+
+# 2. Lint + format staged files
+echo "  → Running lint-staged..."
+npx lint-staged
+
+echo "✅ Pre-commit checks passed"

@@ -1,0 +1,76 @@
+# ============================================================
+# ROOT .gitignore — personal finance monorepo
+# ============================================================
+
+# ── Environment & secrets ───────────────────────────────────
+# NEVER commit real env files. Only .env.example is allowed.
+.env
+.env.local
+.env.development
+.env.development.local
+.env.staging
+.env.staging.local
+.env.production
+.env.production.local
+.env.test
+.env.test.local
+*.env
+secrets/
+.secrets
+
+# ── Node.js ─────────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.npm
+.yarn/cache
+.yarn/unplugged
+.pnpm-store/
+
+# ── Build outputs ────────────────────────────────────────────
+dist/
+build/
+out/
+.next/
+.nuxt/
+.output/
+*.tsbuildinfo
+
+# ── TypeScript ───────────────────────────────────────────────
+*.js.map
+*.d.ts.map
+
+# ── Logs ────────────────────────────────────────────────────
+logs/
+*.log
+log/
+
+# ── OS & editor ─────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+
+# ── Test & coverage ─────────────────────────────────────────
+coverage/
+.nyc_output/
+*.lcov
+
+# ── Docker ──────────────────────────────────────────────────
+# Keep Dockerfiles but ignore local override
+docker-compose.override.yml
+
+# ── Misc ────────────────────────────────────────────────────
+*.pem
+*.key
+*.cert
+*.p12
+*.pfx

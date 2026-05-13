@@ -1,0 +1,92 @@
+name: Deploy · Staging
+
+# Auto-deploy to staging whenever CI passes on develop branch
+on:
+  workflow_run:
+    workflows: ["CI Pipeline"]
+    branches: [develop]
+    types: [completed]
+
+permissions:
+  contents: read
+  packages: read   # pull image from ghcr.io
+
+jobs:
+  deploy-staging:
+    name: "Deploy → staging"
+    runs-on: ubuntu-latest
+    # Only deploy if CI passed — never deploy broken builds
+    if: github.event.workflow_run.conclusion == 'success'
+
+    environment:
+      name: staging
+      url: ${{ vars.STAGING_URL }}   # set in repo Settings → Environments
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.STAGING_USER }}
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          port: 22
+          script_stop: true   # abort on first non-zero exit
+          script: |
+            set -euo pipefail
+
+            echo "▶ Logging in to GHCR..."
+            echo "${{ secrets.GITHUB_TOKEN }}" | \
+              docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+            echo "▶ Pulling new backend image..."
+            docker pull ghcr.io/${{ github.repository }}/backend:develop
+
+            echo "▶ Moving to deploy path..."
+            cd ${{ secrets.STAGING_DEPLOY_PATH }}
+
+            echo "▶ Updating image reference in compose..."
+            # docker compose will use the new :develop image
+            BACKEND_IMAGE=ghcr.io/${{ github.repository }}/backend:develop \
+              docker compose pull backend
+
+            echo "▶ Recreating backend container (zero-downtime within compose)..."
+            BACKEND_IMAGE=ghcr.io/${{ github.repository }}/backend:develop \
+              docker compose up -d --no-deps --force-recreate backend
+
+            echo "▶ Waiting for container to be healthy..."
+            for i in $(seq 1 12); do
+              STATUS=$(docker compose ps backend --format json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('Health',''))" 2>/dev/null || echo "unknown")
+              [ "$STATUS" = "healthy" ] && echo "Container healthy ✅" && break
+              echo "  Attempt $i/12 — status: $STATUS"
+              sleep 5
+            done
+
+            echo "▶ Running database migrations..."
+            docker compose exec -T backend npm run migrate
+
+            echo "▶ Health check..."
+            curl --fail --retry 6 --retry-delay 5 --retry-all-errors \
+              "${STAGING_URL:-http://localhost:4000}/health" \
+              | grep -q '"status":"ok"' && echo "Health check passed ✅"
+
+            echo ""
+            echo "✅ Staging deploy complete"
+            echo "   Commit: ${{ github.event.workflow_run.head_sha }}"
+            echo "   Image:  ghcr.io/${{ github.repository }}/backend:develop"
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "text": "❌ *Staging deploy failed*",
+              "attachments": [{
+                "color": "danger",
+                "fields": [
+                  {"title": "Branch", "value": "develop", "short": true},
+                  {"title": "Commit", "value": "${{ github.event.workflow_run.head_sha }}", "short": true},
+                  {"title": "Run", "value": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}", "short": false}
+                ]
+              }]
+            }'

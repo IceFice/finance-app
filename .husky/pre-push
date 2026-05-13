@@ -1,0 +1,23 @@
+#!/bin/sh
+# Pre-push security gate
+# Runs: full TypeScript typecheck + npm audit before pushing
+
+set -e
+
+echo "🔒 Running pre-push security checks..."
+
+# 1. TypeScript typecheck (both packages)
+echo "  → Type-checking backend..."
+cd backend && npx tsc --noEmit && cd ..
+
+echo "  → Type-checking frontend..."
+cd frontend && npx tsc --noEmit && cd ..
+
+# 2. Dependency vulnerability audit
+echo "  → Auditing backend dependencies..."
+cd backend && npm audit --audit-level=high && cd ..
+
+echo "  → Auditing frontend dependencies..."
+cd frontend && npm audit --audit-level=high && cd ..
+
+echo "✅ Pre-push checks passed — pushing..."

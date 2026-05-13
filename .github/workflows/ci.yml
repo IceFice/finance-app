@@ -1,0 +1,355 @@
+name: CI Pipeline
+
+# Triggers: every push/PR to main or develop
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+# Minimal default permissions — each job escalates only what it needs
+permissions:
+  contents: read
+
+# Cancel in-progress runs on the same branch (saves runner minutes)
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# ──────────────────────────────────────────────────────────────────────────────
+# STAGE 1 · LINT  (backend + frontend in parallel, fail-fast gate)
+# ──────────────────────────────────────────────────────────────────────────────
+jobs:
+  lint-backend:
+    name: "Lint · Backend"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: backend
+        run: npm ci --ignore-scripts
+
+      - name: ESLint
+        working-directory: backend
+        run: npm run lint
+
+      - name: TypeScript typecheck
+        working-directory: backend
+        run: npm run typecheck
+
+  lint-frontend:
+    name: "Lint · Frontend"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci --ignore-scripts
+
+      - name: ESLint
+        working-directory: frontend
+        run: npm run lint
+
+      - name: TypeScript typecheck
+        working-directory: frontend
+        run: npm run typecheck
+
+# ──────────────────────────────────────────────────────────────────────────────
+# STAGE 2a · UNIT TESTS  (Vitest, no DB needed)
+# ──────────────────────────────────────────────────────────────────────────────
+  test-unit:
+    name: "Test · Unit (Vitest)"
+    runs-on: ubuntu-latest
+    needs: [lint-backend, lint-frontend]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: backend
+        run: npm ci --ignore-scripts
+
+      - name: Run unit tests with coverage
+        working-directory: backend
+        run: npm run test:coverage
+        env:
+          NODE_ENV: test
+          # Dummy secrets — unit tests don't touch DB/Redis
+          JWT_ACCESS_SECRET: ci-unit-test-access-secret-32chars!
+          JWT_REFRESH_SECRET: ci-unit-test-refresh-secret-32chars!
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/unused
+          REDIS_URL: redis://localhost:6379
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: unit-coverage-${{ github.sha }}
+          path: backend/coverage/
+          retention-days: 7
+
+# ──────────────────────────────────────────────────────────────────────────────
+# STAGE 2b · INTEGRATION TESTS  (Supertest + real Postgres + Redis)
+# ──────────────────────────────────────────────────────────────────────────────
+  test-integration:
+    name: "Test · Integration (Postgres 16)"
+    runs-on: ubuntu-latest
+    needs: [lint-backend, lint-frontend]
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: finance_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: backend
+        run: npm ci --ignore-scripts
+
+      - name: Apply DB migrations
+        working-directory: backend
+        run: npm run migrate
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/finance_test
+
+      - name: Run integration tests
+        working-directory: backend
+        run: npm run test:integration
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/finance_test
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/finance_test
+          REDIS_URL: redis://localhost:6379
+          JWT_ACCESS_SECRET: ci-integration-access-secret-32chars!
+          JWT_REFRESH_SECRET: ci-integration-refresh-secret-32chars!
+          BCRYPT_ROUNDS: "4"
+          PORT: "4000"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# STAGE 2c · E2E TESTS  (Playwright · Chromium · real stack)
+# ──────────────────────────────────────────────────────────────────────────────
+  test-e2e:
+    name: "Test · E2E (Playwright)"
+    runs-on: ubuntu-latest
+    needs: [lint-backend, lint-frontend]
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: finance_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci --ignore-scripts
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci --ignore-scripts
+
+      - name: Install root dependencies (Playwright)
+        run: npm ci --ignore-scripts
+
+      - name: Install Playwright Chromium
+        run: npx playwright install chromium --with-deps
+
+      - name: Apply DB migrations
+        working-directory: backend
+        run: npm run migrate
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/finance_e2e
+
+      - name: Start backend (background)
+        working-directory: backend
+        run: npm run dev > /tmp/backend.log 2>&1 &
+        env:
+          NODE_ENV: development
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/finance_e2e
+          REDIS_URL: redis://localhost:6379
+          JWT_ACCESS_SECRET: ci-e2e-access-secret-32chars-here!
+          JWT_REFRESH_SECRET: ci-e2e-refresh-secret-32chars-here!
+          BCRYPT_ROUNDS: "4"
+          PORT: "4000"
+          FRONTEND_URL: http://localhost:5173
+
+      - name: Start frontend (background)
+        working-directory: frontend
+        run: npm run dev > /tmp/frontend.log 2>&1 &
+
+      - name: Wait for backend health
+        run: |
+          echo "Waiting for backend..."
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:4000/health && echo "Backend ready ✅" && break
+            echo "Attempt $i/30 — retrying in 2s..."
+            sleep 2
+          done
+          curl -sf http://localhost:4000/health || (cat /tmp/backend.log && exit 1)
+
+      - name: Wait for frontend
+        run: |
+          echo "Waiting for frontend..."
+          for i in $(seq 1 20); do
+            curl -sf http://localhost:5173 -o /dev/null && echo "Frontend ready ✅" && break
+            echo "Attempt $i/20 — retrying in 2s..."
+            sleep 2
+          done
+          curl -sf http://localhost:5173 -o /dev/null || (cat /tmp/frontend.log && exit 1)
+
+      - name: Run Playwright tests
+        run: npx playwright test --reporter=list,html
+        env:
+          CI: "true"
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report-${{ github.sha }}
+          path: playwright-report/
+          retention-days: 7
+
+      - name: Upload backend log on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: backend-log-${{ github.sha }}
+          path: /tmp/backend.log
+          retention-days: 3
+
+# ──────────────────────────────────────────────────────────────────────────────
+# STAGE 3 · BUILD & PUSH DOCKER IMAGE  (main + develop branches only)
+# ──────────────────────────────────────────────────────────────────────────────
+  build-docker:
+    name: "Build · Docker → ghcr.io"
+    runs-on: ubuntu-latest
+    needs: [test-unit, test-integration, test-e2e]
+    # Only push images on branch pushes — not on PRs
+    if: github.event_name == 'push'
+    permissions:
+      contents: read
+      packages: write   # required to push to ghcr.io
+
+    outputs:
+      image-tag: ${{ steps.meta.outputs.version }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Enables multi-platform builds and BuildKit cache
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Generates tags:
+      #   ghcr.io/owner/repo/backend:sha-<commit>
+      #   ghcr.io/owner/repo/backend:develop  (or :main)
+      #   ghcr.io/owner/repo/backend:latest   (main only)
+      - name: Extract image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}/backend
+          tags: |
+            type=sha,prefix=sha-,format=short
+            type=ref,event=branch
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # BuildKit layer cache — drastically speeds up repeat builds
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Image digest summary
+        run: |
+          echo "## Docker Image Published 🐳" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
