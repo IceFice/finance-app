@@ -18,7 +18,7 @@ function mapRow(row: TransactionRow) {
     transferPairId: row.transfer_pair_id, amount: row.amount, amountBase: row.amount_base,
     currency: row.currency, exchangeRate: row.exchange_rate, type: row.type,
     description: row.description, merchant: row.merchant,
-    date: row.date instanceof Date ? row.date.toISOString().slice(0, 10) : String(row.date),
+    date: String(row.date).slice(0, 10),
     notes: row.notes, createdAt: row.created_at, updatedAt: row.updated_at,
     categoryName: row.category_name ?? null, categoryColor: row.category_color ?? null,
     accountName: row.account_name ?? null,
@@ -65,7 +65,7 @@ export async function list(userId: string, query: ListQuery) {
   const rows = hasMore ? res.rows.slice(0, query.limit) : res.rows;
   const last = rows[rows.length - 1];
   const nextCursor = hasMore && last
-    ? encodeCursor(last.date instanceof Date ? last.date.toISOString().slice(0, 10) : String(last.date), last.id)
+    ? encodeCursor(String(last.date).slice(0, 10), last.id)
     : null;
 
   return { data: rows.map(mapRow), pagination: { nextCursor, hasMore, limit: query.limit } };

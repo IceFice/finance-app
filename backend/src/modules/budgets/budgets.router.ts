@@ -20,10 +20,10 @@ budgetsRouter.post('/', asyncHandler(async (req: Request, res: Response) => {
 
 budgetsRouter.patch('/:id', asyncHandler(async (req: Request, res: Response) => {
   const input = updateBudgetSchema.parse(req.body);
-  sendSuccess(res, await budgetsService.update(req.userId, req.params.id, input));
+  sendSuccess(res, await budgetsService.update(req.userId, req.params['id'] as string, input));
 }));
 
 budgetsRouter.delete('/:id', asyncHandler(async (req: Request, res: Response) => {
-  await budgetsService.remove(req.userId, req.params.id);
+  await budgetsService.remove(req.userId, req.params['id'] as string);
   res.status(204).end();
 }));

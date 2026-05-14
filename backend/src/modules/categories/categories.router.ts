@@ -20,10 +20,10 @@ categoriesRouter.post('/', asyncHandler(async (req: Request, res: Response) => {
 
 categoriesRouter.patch('/:id', asyncHandler(async (req: Request, res: Response) => {
   const input = updateCategorySchema.parse(req.body);
-  sendSuccess(res, await categoriesService.update(req.userId, req.params.id, input));
+  sendSuccess(res, await categoriesService.update(req.userId, req.params['id'] as string, input));
 }));
 
 categoriesRouter.delete('/:id', asyncHandler(async (req: Request, res: Response) => {
-  await categoriesService.remove(req.userId, req.params.id);
+  await categoriesService.remove(req.userId, req.params['id'] as string);
   res.status(204).end();
 }));

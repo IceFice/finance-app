@@ -1,3 +1,4 @@
+import { afterAll } from 'vitest';
 import { pool } from '../db/pool';
 
 // Require a dedicated test database — never run against production

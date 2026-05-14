@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { useTransactions, useDeleteTransaction, useCreateTransaction } from '../../hooks/useTransactions';
+import { useTransactions, useDeleteTransaction, useCreateTransaction, Transaction } from '../../hooks/useTransactions';
 import { useAccounts } from '../../hooks/useAccounts';
 import { useCategories } from '../../hooks/useReports';
 import { Card } from '../../components/ui/Card';
@@ -26,23 +26,6 @@ const addSchema = z.object({
 
 type AddFormData = z.infer<typeof addSchema>;
 
-interface Transaction {
-  id: string;
-  date: string;
-  description?: string;
-  merchant?: string;
-  type: 'debit' | 'credit' | 'transfer';
-  amount: string;
-  currency: string;
-  category_name?: string;
-  category_color?: string;
-  category_icon?: string;
-  account_name?: string;
-  account_id: string;
-  category_id?: string;
-  notes?: string;
-  created_at: string;
-}
 
 function AddForm({ accounts, categories, onClose }: {
   accounts: Array<{ id: string; name: string; currency: string }>;
@@ -225,20 +208,20 @@ function TransactionDetail({ tx, onClose }: { tx: Transaction; onClose: () => vo
             <span className="font-medium text-gray-900 dark:text-gray-100">{tx.description}</span>
           </div>
         )}
-        {tx.category_name && (
+        {tx.categoryName && (
           <div className="flex justify-between items-center">
             <span className="text-gray-500 dark:text-gray-400">Категория</span>
             <span className="flex items-center gap-2">
-              {tx.category_color && (
-                <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: tx.category_color }} />
+              {tx.categoryColor && (
+                <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: tx.categoryColor }} />
               )}
-              <span className="font-medium text-gray-900 dark:text-gray-100">{tx.category_name}</span>
+              <span className="font-medium text-gray-900 dark:text-gray-100">{tx.categoryName}</span>
             </span>
           </div>
         )}
         <div className="flex justify-between">
           <span className="text-gray-500 dark:text-gray-400">Счёт</span>
-          <span className="font-medium text-gray-900 dark:text-gray-100">{tx.account_name}</span>
+          <span className="font-medium text-gray-900 dark:text-gray-100">{tx.accountName}</span>
         </div>
         {tx.notes && (
           <div>
@@ -248,7 +231,7 @@ function TransactionDetail({ tx, onClose }: { tx: Transaction; onClose: () => vo
         )}
         <div className="flex justify-between text-xs text-gray-400">
           <span>Создано</span>
-          <span>{formatDate(tx.created_at)}</span>
+          <span>{formatDate(tx.createdAt)}</span>
         </div>
       </div>
 
@@ -297,7 +280,7 @@ export default function TransactionsPage() {
 
   const deleteMutation = useDeleteTransaction();
 
-  const transactions: Transaction[] = data?.pages?.flatMap((p: { data: Transaction[] }) => p.data) ?? [];
+  const transactions: Transaction[] = data?.pages?.flatMap((p) => p.data) ?? [];
 
   const handleObserver = useCallback(
     (entries: IntersectionObserverEntry[]) => {
@@ -471,9 +454,9 @@ export default function TransactionsPage() {
                     <div className="flex items-center gap-3 flex-1 md:contents">
                       <div
                         className="w-9 h-9 md:hidden rounded-full flex items-center justify-center flex-shrink-0 text-sm"
-                        style={{ backgroundColor: tx.category_color ? tx.category_color + '33' : '#6b728033' }}
+                        style={{ backgroundColor: tx.categoryColor ? tx.categoryColor + '33' : '#6b728033' }}
                       >
-                        {tx.category_icon || (isCredit ? '💰' : isTransfer ? '🔄' : '💸')}
+                        {isCredit ? '💰' : isTransfer ? '🔄' : '💸'}
                       </div>
 
                       {/* Date */}
@@ -494,13 +477,13 @@ export default function TransactionsPage() {
 
                       {/* Category */}
                       <div className="hidden md:flex md:col-span-2 items-center gap-2">
-                        {tx.category_name ? (
+                        {tx.categoryName ? (
                           <>
                             <span
                               className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                              style={{ backgroundColor: tx.category_color || '#6b7280' }}
+                              style={{ backgroundColor: tx.categoryColor || '#6b7280' }}
                             />
-                            <span className="text-sm text-gray-600 dark:text-gray-300 truncate">{tx.category_name}</span>
+                            <span className="text-sm text-gray-600 dark:text-gray-300 truncate">{tx.categoryName}</span>
                           </>
                         ) : (
                           <span className="text-sm text-gray-400">—</span>
@@ -509,7 +492,7 @@ export default function TransactionsPage() {
 
                       {/* Account */}
                       <div className="hidden md:block md:col-span-2">
-                        <span className="text-sm text-gray-600 dark:text-gray-300 truncate">{tx.account_name}</span>
+                        <span className="text-sm text-gray-600 dark:text-gray-300 truncate">{tx.accountName}</span>
                       </div>
                     </div>
 
@@ -550,7 +533,7 @@ export default function TransactionsPage() {
 
       {/* Delete Confirmation Modal */}
       <Modal
-        isOpen={!!deleteId}
+        open={!!deleteId}
         onClose={() => setDeleteId(null)}
         title="Удалить транзакцию"
       >
@@ -576,7 +559,7 @@ export default function TransactionsPage() {
 
       {/* Transaction Detail SlideOver */}
       <SlideOver
-        isOpen={!!detailTx}
+        open={!!detailTx}
         onClose={() => setDetailTx(null)}
         title="Детали транзакции"
       >
@@ -590,7 +573,7 @@ export default function TransactionsPage() {
 
       {/* Add Transaction SlideOver */}
       <SlideOver
-        isOpen={showAdd}
+        open={showAdd}
         onClose={() => setShowAdd(false)}
         title="Новая транзакция"
       >

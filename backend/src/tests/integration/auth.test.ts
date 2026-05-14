@@ -37,7 +37,7 @@ describe('POST /api/v1/auth/register', () => {
     await pool.query(`DELETE FROM users WHERE email = $1`, [e2]);
 
     expect(res.status).toBe(201);
-    const cookieHeader = res.headers['set-cookie'] as string[];
+    const cookieHeader = res.headers['set-cookie'] as unknown as string[];
     expect(cookieHeader).toBeDefined();
     const rtCookie = cookieHeader.find((c: string) => c.startsWith('refreshToken='));
     expect(rtCookie).toBeDefined();
@@ -103,7 +103,7 @@ describe('POST /api/v1/auth/login', () => {
       .post('/api/v1/auth/login')
       .send({ email, password });
 
-    const cookies = res.headers['set-cookie'] as string[];
+    const cookies = res.headers['set-cookie'] as unknown as string[];
     const rt = cookies?.find((c: string) => c.startsWith('refreshToken='));
     expect(rt).toBeDefined();
     expect(rt).toContain('HttpOnly');

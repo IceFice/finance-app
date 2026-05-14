@@ -15,7 +15,7 @@ accountsRouter.get('/', asyncHandler(async (req: Request, res: Response) => {
 }));
 
 accountsRouter.get('/:id', asyncHandler(async (req: Request, res: Response) => {
-  const account = await accountsService.getById(req.userId, req.params.id);
+  const account = await accountsService.getById(req.userId, req.params['id'] as string);
   sendSuccess(res, account);
 }));
 
@@ -27,11 +27,11 @@ accountsRouter.post('/', asyncHandler(async (req: Request, res: Response) => {
 
 accountsRouter.patch('/:id', asyncHandler(async (req: Request, res: Response) => {
   const input = updateAccountSchema.parse(req.body);
-  const account = await accountsService.update(req.userId, req.params.id, input);
+  const account = await accountsService.update(req.userId, req.params['id'] as string, input);
   sendSuccess(res, account);
 }));
 
 accountsRouter.delete('/:id', asyncHandler(async (req: Request, res: Response) => {
-  await accountsService.remove(req.userId, req.params.id);
+  await accountsService.remove(req.userId, req.params['id'] as string);
   res.status(204).end();
 }));

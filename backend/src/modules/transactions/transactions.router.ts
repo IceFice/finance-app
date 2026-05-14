@@ -16,7 +16,7 @@ transactionsRouter.get('/', asyncHandler(async (req: Request, res: Response) => 
 }));
 
 transactionsRouter.get('/:id', asyncHandler(async (req: Request, res: Response) => {
-  sendSuccess(res, await txService.getById(req.userId, req.params.id));
+  sendSuccess(res, await txService.getById(req.userId, req.params['id'] as string));
 }));
 
 transactionsRouter.post('/', asyncHandler(async (req: Request, res: Response) => {
@@ -26,11 +26,11 @@ transactionsRouter.post('/', asyncHandler(async (req: Request, res: Response) =>
 
 transactionsRouter.patch('/:id', asyncHandler(async (req: Request, res: Response) => {
   const input = updateTransactionSchema.parse(req.body);
-  sendSuccess(res, await txService.update(req.userId, req.params.id, input));
+  sendSuccess(res, await txService.update(req.userId, req.params['id'] as string, input));
 }));
 
 transactionsRouter.delete('/:id', asyncHandler(async (req: Request, res: Response) => {
-  await txService.softDelete(req.userId, req.params.id);
+  await txService.softDelete(req.userId, req.params['id'] as string);
   res.status(204).end();
 }));
 
