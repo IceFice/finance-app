@@ -29,20 +29,9 @@ export default defineConfig({
         statements: 80,
       },
     },
-    // Integration project: requires TEST_DATABASE_URL
-    projects: [
-      {
-        test: {
-          name: 'integration',
-          include: ['src/tests/integration/**/*.test.ts'],
-          environment: 'node',
-          setupFiles: ['src/tests/setup.integration.ts'],
-          // Run integration tests serially to avoid DB contention
-          pool: 'forks',
-          poolOptions: { forks: { singleFork: true } },
-          testTimeout: 30_000,
-        },
-      },
-    ],
+    // Integration tests run via vitest.integration.config.ts (separate config).
+    // Using inline projects caused "No test files found" in CI because vitest
+    // resolves project include patterns relative to the workspace root, not the
+    // config file directory, so src/tests/integration/** never matched.
   },
 });
