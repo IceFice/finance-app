@@ -10,12 +10,15 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov', 'html'],
-      include: ['src/**/*.ts'],
+      // Do NOT set `include` here — without it, only files actually imported
+      // by unit tests are instrumented. Setting include forces all-files mode
+      // which tanks coverage by counting service/middleware files at 0%.
+      // Integration tests (Supertest) cover the service layer separately.
       exclude: [
         'src/**/__tests__/**',
         'src/tests/**',
         'src/server.ts',
-        'src/db/pool.ts',    // bootstrapping, not business logic
+        'src/db/pool.ts',
       ],
       thresholds: {
         lines: 80,
