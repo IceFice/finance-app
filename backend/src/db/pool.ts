@@ -1,5 +1,10 @@
-import { Pool, PoolClient } from 'pg';
+import { Pool, PoolClient, types as pgTypes } from 'pg';
 import { config } from '../config';
+
+// pg converts DATE columns (OID 1082) to JS Date objects by default.
+// String(dateObj).slice(0,10) → "Fri Mar 15" instead of "2024-03-15".
+// Keep DATE values as plain "YYYY-MM-DD" strings throughout the app.
+pgTypes.setTypeParser(1082, (val: string) => val);
 
 export const pool = new Pool({
   connectionString: config.DATABASE_URL,

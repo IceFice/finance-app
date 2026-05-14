@@ -26,6 +26,10 @@ function logRedisFailure(err: unknown) {
 
 export function rateLimiter(opts: RateLimitOptions) {
   return async (req: Request, res: Response, next: NextFunction) => {
+    // Skip rate limiting entirely in test environment — integration tests make
+    // many rapid requests and would otherwise exhaust the per-IP auth limit (5/15min).
+    if (process.env['NODE_ENV'] === 'test') return next();
+
     const key = opts.keyFn ? opts.keyFn(req) : `rl:${req.ip}:${req.path}`;
     try {
       const current = await redis.incr(key);
