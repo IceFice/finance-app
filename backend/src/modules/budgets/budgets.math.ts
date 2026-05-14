@@ -1,4 +1,4 @@
-import { differenceInDays, parseISO, startOfMonth, startOfWeek, startOfYear } from 'date-fns';
+import { differenceInCalendarDays, differenceInDays, parseISO, startOfMonth, startOfWeek, startOfYear } from 'date-fns';
 
 export type BudgetPeriod = 'monthly' | 'weekly' | 'yearly';
 
@@ -33,7 +33,7 @@ export function calcRemaining(spent: string, limit: string): string {
 export function calcDaysRemaining(endDate: string | null, period: BudgetPeriod, now = new Date()): number | null {
   if (endDate) {
     const end = parseISO(endDate);
-    return Math.max(0, differenceInDays(end, now));
+    return Math.max(0, differenceInCalendarDays(end, now));
   }
   // Rolling period: compute end as start of *next* period
   switch (period) {

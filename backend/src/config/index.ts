@@ -47,7 +47,16 @@ const envSchema = z.object({
   FRONTEND_URL: z.string().url('FRONTEND_URL must be a valid URL').default('http://localhost:5173'),
 
   // ── Security ─────────────────────────────────────────────
-  BCRYPT_ROUNDS: z.coerce.number().int().min(10).max(14).default(12),
+  // min(4) allows fast rounds in test (CI sets BCRYPT_ROUNDS=4).
+  // Production enforcement (>=10) is done via superRefine below.
+  BCRYPT_ROUNDS: z.coerce.number().int().min(4).max(14).default(12).superRefine((val, ctx) => {
+    if (process.env['NODE_ENV'] === 'production' && val < 10) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'BCRYPT_ROUNDS must be at least 10 in production',
+      });
+    }
+  }),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().default(15 * 60 * 1000),
   RATE_LIMIT_AUTH_MAX: z.coerce.number().int().default(5),
   RATE_LIMIT_API_MAX: z.coerce.number().int().default(200),

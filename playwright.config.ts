@@ -18,20 +18,29 @@ export default defineConfig({
     actionTimeout: 10_000,
     navigationTimeout: 15_000,
   },
-  projects: [
-    {
-      name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
-    },
-    {
-      name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
-    },
-    {
-      name: 'mobile',
-      use: { ...devices['Pixel 5'] },
-    },
-  ],
+  // In CI only Chromium is installed (--with-deps).
+  // Locally all three browsers run for broader coverage.
+  projects: process.env['CI']
+    ? [
+        {
+          name: 'chromium',
+          use: { ...devices['Desktop Chrome'] },
+        },
+      ]
+    : [
+        {
+          name: 'chromium',
+          use: { ...devices['Desktop Chrome'] },
+        },
+        {
+          name: 'firefox',
+          use: { ...devices['Desktop Firefox'] },
+        },
+        {
+          name: 'mobile',
+          use: { ...devices['Pixel 5'] },
+        },
+      ],
   /* Запустить frontend перед тестами (если не запущен) */
   // webServer: {
   //   command: 'cd frontend && npm run dev',

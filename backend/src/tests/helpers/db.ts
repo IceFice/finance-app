@@ -75,11 +75,12 @@ export async function createTestTransaction(userId: string, accountId: string, o
 } = {}) {
   const res = await pool.query<{ id: string }>(
     `INSERT INTO transactions
-       (user_id, account_id, amount, currency, exchange_rate, type, description, date)
-     VALUES ($1,$2,$3,'USD',1,$4,$5,$6) RETURNING id`,
+       (user_id, account_id, category_id, amount, currency, exchange_rate, type, description, date)
+     VALUES ($1,$2,$3,$4,'USD',1,$5,$6,$7) RETURNING id`,
     [
       userId,
       accountId,
+      opts.categoryId ?? null,
       opts.amount ?? '100.00',
       opts.type ?? 'debit',
       opts.description ?? 'Test transaction',
