@@ -1,5 +1,5 @@
 import { pool } from '../../db/pool';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 
 const BCRYPT_ROUNDS = 4; // fast rounds for tests only

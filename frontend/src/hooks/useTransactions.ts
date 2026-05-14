@@ -64,8 +64,8 @@ export function useCreateTransaction() {
     mutationFn: (data: Partial<Transaction> & { accountId: string; amount: string; type: string; date: string }) =>
       api.post('/transactions', data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['transactions'] });
-      qc.invalidateQueries({ queryKey: ['accounts'] });
+      void qc.invalidateQueries({ queryKey: ['transactions'] });
+      void qc.invalidateQueries({ queryKey: ['accounts'] });
     },
   });
 }

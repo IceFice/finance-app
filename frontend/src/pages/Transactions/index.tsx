@@ -8,7 +8,6 @@ import { Badge } from '../../components/ui/Badge';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { Modal } from '../../components/ui/Modal';
 import { SlideOver } from '../../components/ui/SlideOver';
-import { ProgressBar } from '../../components/ui/ProgressBar';
 import { formatMoney, formatDate } from '../../lib/utils';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -303,7 +302,7 @@ export default function TransactionsPage() {
   const handleObserver = useCallback(
     (entries: IntersectionObserverEntry[]) => {
       if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
-        fetchNextPage();
+        void fetchNextPage();
       }
     },
     [fetchNextPage, hasNextPage, isFetchingNextPage]

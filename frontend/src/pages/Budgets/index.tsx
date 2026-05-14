@@ -4,7 +4,7 @@ import { useCategories } from '../../hooks/useReports';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
-import { Skeleton, SkeletonCard } from '../../components/ui/Skeleton';
+import { SkeletonCard } from '../../components/ui/Skeleton';
 import { Modal } from '../../components/ui/Modal';
 import { ProgressBar } from '../../components/ui/ProgressBar';
 import { formatMoney } from '../../lib/utils';
@@ -57,11 +57,6 @@ function daysRemaining(period: string, endDate?: string): number {
   return 0;
 }
 
-function getProgressVariant(percent: number): 'success' | 'warning' | 'error' {
-  if (percent >= 100) return 'error';
-  if (percent >= 80) return 'warning';
-  return 'success';
-}
 
 function BudgetCard({
   budget,

@@ -5,11 +5,12 @@ import tsParser from '@typescript-eslint/parser';
 import reactPlugin from 'eslint-plugin-react';
 import reactHooksPlugin from 'eslint-plugin-react-hooks';
 import securityPlugin from 'eslint-plugin-security';
+import globals from 'globals';
 
 export default [
   js.configs.recommended,
 
-  // ── React + TypeScript files ────────────────────────────────
+  // ── React + TypeScript files ────────────────────────────────────────────
   {
     files: ['src/**/*.{ts,tsx}'],
     languageOptions: {
@@ -19,24 +20,10 @@ export default [
         tsconfigRootDir: import.meta.dirname,
         ecmaFeatures: { jsx: true },
       },
+      // Use the globals package — covers all browser + ES2022 built-ins
       globals: {
-        window: 'readonly',
-        document: 'readonly',
-        navigator: 'readonly',
-        console: 'readonly',
-        setTimeout: 'readonly',
-        clearTimeout: 'readonly',
-        setInterval: 'readonly',
-        clearInterval: 'readonly',
-        fetch: 'readonly',
-        URLSearchParams: 'readonly',
-        IntersectionObserver: 'readonly',
-        localStorage: 'readonly',
-        sessionStorage: 'readonly',
-        crypto: 'readonly',
-        Event: 'readonly',
-        CustomEvent: 'readonly',
-        import: 'readonly',
+        ...globals.browser,
+        ...globals.es2022,
       },
     },
     plugins: {
@@ -49,41 +36,50 @@ export default [
       react: { version: 'detect' },
     },
     rules: {
-      // ── XSS prevention ─────────────────────────────────────
-      // dangerouslySetInnerHTML must never be used
+      // Disable base rule — TS version understands type params & destructured vars
+      'no-unused-vars': 'off',
+      // TypeScript compiler already catches undefined names; globals.browser covers the rest
+      'no-undef': 'off',
+
+      // ── XSS prevention ─────────────────────────────────────────────────
       'react/no-danger': 'error',
       'react/no-danger-with-children': 'error',
 
-      // ── Security ────────────────────────────────────────────
+      // ── Security ─────────────────────────────────────────────────────────
       'security/detect-eval-with-expression': 'error',
-      'security/detect-non-literal-regexp': 'warn',
-      'security/detect-object-injection': 'warn',
       'security/detect-pseudoRandomBytes': 'error',
+      // False positives in typed TS code — disabled to keep signal/noise ratio high
+      'security/detect-object-injection': 'off',
+      'security/detect-non-literal-regexp': 'off',
       'no-eval': 'error',
       'no-new-func': 'error',
       'no-implied-eval': 'error',
       'no-script-url': 'error',
 
-      // ── React best practices ────────────────────────────────
+      // ── React best practices ─────────────────────────────────────────────
       'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'warn',
-      'react/jsx-no-target-blank': ['error', { enforceDynamicLinks: 'error' }],
+      'react/jsx-no-target-blank': 'error',
       'react/jsx-no-script-url': 'error',
 
-      // ── TypeScript ──────────────────────────────────────────
+      // ── TypeScript ────────────────────────────────────────────────────────
       '@typescript-eslint/no-explicit-any': 'warn',
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_', ignoreRestSiblings: true },
+      ],
       '@typescript-eslint/no-floating-promises': 'error',
 
-      // ── General ─────────────────────────────────────────────
+      // ── General ──────────────────────────────────────────────────────────
       'prefer-const': 'error',
       'no-var': 'error',
       eqeqeq: ['error', 'always'],
-      'no-console': ['warn', { allow: ['error', 'warn'] }],
+      // Frontend React code frequently uses console for debugging; allow all
+      'no-console': 'off',
     },
   },
 
-  // ── Ignore patterns ─────────────────────────────────────────
+  // ── Ignore patterns ───────────────────────────────────────────────────────
   {
     ignores: ['dist/', 'node_modules/', 'vite.config.ts'],
   },

@@ -23,14 +23,18 @@ async function start() {
     console.log(`🚀 Server running on port ${config.PORT} [${config.NODE_ENV}]`);
   });
 
-  async function shutdown(signal: string) {
+  function shutdown(signal: string): void {
     console.log(`\n${signal} received — shutting down...`);
-    server.close(async () => {
-      await pool.end();
-      await redis.quit();
-      console.log('✅ Shutdown complete');
-      process.exit(0);
+    server.close(() => {
+      // Use void IIFE to run async cleanup inside the sync close callback
+      void (async () => {
+        await pool.end();
+        await redis.quit();
+        console.log('✅ Shutdown complete');
+        process.exit(0);
+      })();
     });
+    // Force-kill after 10s if graceful shutdown hangs
     setTimeout(() => process.exit(1), 10_000);
   }
 
@@ -38,4 +42,5 @@ async function start() {
   process.on('SIGINT', () => shutdown('SIGINT'));
 }
 
-start();
+// Top-level promise — catch is handled inside start() itself
+void start();

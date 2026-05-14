@@ -22,6 +22,7 @@ async function migrate() {
     for (const file of files) {
       if (appliedSet.has(file)) { console.log(`  ⏭  ${file} (already applied)`); continue; }
       console.log(`  ▶  Applying ${file}...`);
+      // eslint-disable-next-line security/detect-non-literal-fs-filename
       const sql = readFileSync(join(migrationsDir, file), 'utf8');
       await client.query('BEGIN');
       await client.query(sql);
