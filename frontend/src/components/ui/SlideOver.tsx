@@ -24,8 +24,9 @@ export function SlideOver({ open, onClose, title, children, className }: SlideOv
         onClick={onClose}
       />
       <div
-        role="dialog"
-        aria-modal="true"
+        role={open ? 'dialog' : undefined}
+        aria-modal={open ? 'true' : undefined}
+        aria-hidden={open ? undefined : 'true'}
         aria-label={title}
         className={cn(
           'absolute right-0 top-0 h-full w-full max-w-md bg-white dark:bg-gray-900 shadow-xl transition-transform duration-300 flex flex-col',

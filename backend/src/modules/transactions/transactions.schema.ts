@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export const createTransactionSchema = z.object({
   accountId: z.string().uuid(),
-  categoryId: z.string().uuid().optional(),
+  categoryId: z.string().uuid().nullable().optional(),
   amount: z.string().regex(/^\d+(\.\d{1,2})?$/),
   currency: z.string().length(3).default('USD'),
   exchangeRate: z.string().regex(/^\d+(\.\d{1,6})?$/).default('1.000000'),

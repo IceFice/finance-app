@@ -123,8 +123,16 @@ export async function update(userId: string, transactionId: string, input: Updat
 }
 
 export async function softDelete(userId: string, transactionId: string) {
-  await getById(userId, transactionId);
-  await pool.query(`UPDATE transactions SET deleted_at = NOW() WHERE id = $1`, [transactionId]);
+  // Atomic guard: a single UPDATE that only matches an owned, not-yet-deleted
+  // row. Under concurrent deletes exactly one request affects the row (200);
+  // the loser matches 0 rows and gets 404. Also covers not-found / not-owner.
+  const res = await pool.query(
+    `UPDATE transactions SET deleted_at = NOW()
+     WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL
+     RETURNING id`,
+    [transactionId, userId]
+  );
+  if (res.rowCount === 0) throw new NotFoundError('Transaction');
 }
 
 export async function createTransfer(userId: string, input: CreateTransferInput) {
