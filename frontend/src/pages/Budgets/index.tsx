@@ -166,8 +166,9 @@ function BudgetForm({
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-4">
       <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Название</label>
+        <label htmlFor="budget-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Название</label>
         <input
+          id="budget-name"
           {...register('name')}
           type="text"
           placeholder="Например: Продукты на март"
@@ -177,8 +178,9 @@ function BudgetForm({
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Категория</label>
+        <label htmlFor="budget-categoryId" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Категория</label>
         <select
+          id="budget-categoryId"
           {...register('categoryId')}
           className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
@@ -193,8 +195,9 @@ function BudgetForm({
 
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Лимит</label>
+          <label htmlFor="budget-amount" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Лимит</label>
           <input
+            id="budget-amount"
             {...register('amount')}
             type="number"
             step="0.01"

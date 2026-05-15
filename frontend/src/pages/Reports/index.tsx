@@ -39,7 +39,7 @@ const TABS: Array<{ key: TabKey; label: string }> = [
 
 const PRESETS: Array<{ key: PresetKey; label: string }> = [
   { key: 'this_month', label: 'Этот месяц' },
-  { key: 'last_3_months', label: 'Последние 3 мес.' },
+  { key: 'last_3_months', label: 'Последние 3 месяца' },
   { key: 'this_year', label: 'Этот год' },
 ];
 
@@ -515,10 +515,12 @@ export default function ReportsPage() {
       </div>
 
       {/* Tab Navigation */}
-      <div className="flex border-b border-gray-200 dark:border-gray-700">
+      <div role="tablist" className="flex border-b border-gray-200 dark:border-gray-700">
         {TABS.map((tab) => (
           <button
             key={tab.key}
+            role="tab"
+            aria-selected={activeTab === tab.key}
             onClick={() => setActiveTab(tab.key)}
             className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
               activeTab === tab.key

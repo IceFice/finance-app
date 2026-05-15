@@ -74,10 +74,11 @@ export default function RegisterPage() {
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
             {/* Имя */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+              <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                 Имя
               </label>
               <input
+                id="fullName"
                 type="text"
                 autoComplete="name"
                 {...register('fullName')}
@@ -91,10 +92,11 @@ export default function RegisterPage() {
 
             {/* Email */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                 Email
               </label>
               <input
+                id="email"
                 type="email"
                 autoComplete="email"
                 {...register('email')}
@@ -108,10 +110,11 @@ export default function RegisterPage() {
 
             {/* Пароль */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                 Пароль
               </label>
               <input
+                id="password"
                 type="password"
                 autoComplete="new-password"
                 {...register('password')}
@@ -125,10 +128,11 @@ export default function RegisterPage() {
 
             {/* Подтверждение пароля */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                 Повторите пароль
               </label>
               <input
+                id="confirmPassword"
                 type="password"
                 autoComplete="new-password"
                 {...register('confirmPassword')}

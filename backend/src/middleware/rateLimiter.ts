@@ -58,7 +58,13 @@ export function rateLimiter(opts: RateLimitOptions) {
 export const authLimiter = rateLimiter({
   windowSec: 15 * 60,
   max: 5,
-  keyFn: (req) => `rl:auth:${req.ip}`,
+  // Key on email so each account gets its own 5-attempt budget.
+  // This prevents cross-test contamination in E2E (all requests share 127.0.0.1)
+  // while still protecting against brute-force on a specific account.
+  keyFn: (req) => {
+    const email = (req.body as { email?: string } | undefined)?.email ?? '';
+    return `rl:auth:${req.ip}:${email}`;
+  },
 });
 
 export const generalLimiter = rateLimiter({

@@ -124,14 +124,14 @@ test('S-07: rate limit headers present on auth endpoints', async () => {
 });
 
 // ── S-09: Подделанный cursor ──────────────────────────────────────────────────
-test('S-09: tampered cursor → 400 validation error', async () => {
+test('S-09: tampered cursor → 422 validation error', async () => {
   const user = makeUser('cursor');
   const { accessToken } = await apiRegister(user);
 
   const res = await fetch(`${BASE}/transactions?cursor=NOT_VALID_BASE64!!!`, {
     headers: authHeader(accessToken),
   });
-  expect(res.status).toBe(400);
+  expect(res.status).toBe(422);
 });
 
 // ── S-10: Валидный base64 cursor, но чужой ID ────────────────────────────────

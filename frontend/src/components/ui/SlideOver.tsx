@@ -23,11 +23,16 @@ export function SlideOver({ open, onClose, title, children, className }: SlideOv
         className={cn('absolute inset-0 bg-black/40 transition-opacity duration-300', open ? 'opacity-100' : 'opacity-0')}
         onClick={onClose}
       />
-      <div className={cn(
-        'absolute right-0 top-0 h-full w-full max-w-md bg-white dark:bg-gray-900 shadow-xl transition-transform duration-300 flex flex-col',
-        open ? 'translate-x-0' : 'translate-x-full',
-        className
-      )}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        className={cn(
+          'absolute right-0 top-0 h-full w-full max-w-md bg-white dark:bg-gray-900 shadow-xl transition-transform duration-300 flex flex-col',
+          open ? 'translate-x-0' : 'translate-x-full',
+          className
+        )}
+      >
         <div className='flex items-center justify-between p-5 border-b border-gray-200 dark:border-gray-800 flex-shrink-0'>
           <h2 className='text-lg font-semibold text-gray-900 dark:text-white'>{title}</h2>
           <Button variant='ghost' size='sm' onClick={onClose} className='p-1.5'>&#x2715;</Button>

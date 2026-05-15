@@ -70,10 +70,11 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           </button>
           <button
             onClick={handleLogout}
+            aria-label="Выйти"
             className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 dark:text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/10 hover:text-red-600 dark:hover:text-red-400 transition-colors"
           >
             <span className="flex-shrink-0">🚪</span>
-            {sidebarOpen && <span>Выйти</span>}
+            {sidebarOpen && <span aria-hidden="true">Выйти</span>}
           </button>
           {sidebarOpen && user && (
             <div className="px-3 py-2 text-xs text-gray-500 dark:text-gray-500 truncate">

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { useTransactions, useDeleteTransaction, useCreateTransaction, Transaction } from '../../hooks/useTransactions';
+import { useTransactions, useDeleteTransaction, useCreateTransaction, useUpdateTransaction, Transaction } from '../../hooks/useTransactions';
 import { useAccounts } from '../../hooks/useAccounts';
 import { useCategories } from '../../hooks/useReports';
 import { Card } from '../../components/ui/Card';
@@ -59,10 +59,11 @@ function AddForm({ accounts, categories, onClose }: {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 p-6">
       <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+        <label htmlFor="add-type" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           Тип операции
         </label>
         <select
+          id="add-type"
           {...register('type')}
           className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
@@ -73,10 +74,11 @@ function AddForm({ accounts, categories, onClose }: {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+        <label htmlFor="add-accountId" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           Счёт
         </label>
         <select
+          id="add-accountId"
           {...register('accountId')}
           className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
@@ -92,10 +94,11 @@ function AddForm({ accounts, categories, onClose }: {
 
       {txType !== 'transfer' && (
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          <label htmlFor="add-categoryId" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Категория
           </label>
           <select
+            id="add-categoryId"
             {...register('categoryId')}
             className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
@@ -110,10 +113,11 @@ function AddForm({ accounts, categories, onClose }: {
       )}
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+        <label htmlFor="add-amount" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           Сумма
         </label>
         <input
+          id="add-amount"
           {...register('amount')}
           type="number"
           step="0.01"
@@ -127,10 +131,11 @@ function AddForm({ accounts, categories, onClose }: {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+        <label htmlFor="add-date" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           Дата
         </label>
         <input
+          id="add-date"
           {...register('date')}
           type="date"
           className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -141,10 +146,11 @@ function AddForm({ accounts, categories, onClose }: {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+        <label htmlFor="add-merchant" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           Получатель / Магазин
         </label>
         <input
+          id="add-merchant"
           {...register('merchant')}
           type="text"
           placeholder="Название магазина или получателя"
@@ -153,10 +159,11 @@ function AddForm({ accounts, categories, onClose }: {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+        <label htmlFor="add-description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           Описание
         </label>
         <input
+          id="add-description"
           {...register('description')}
           type="text"
           placeholder="Необязательное описание"
@@ -176,12 +183,29 @@ function AddForm({ accounts, categories, onClose }: {
   );
 }
 
+const editSchema = z.object({
+  description: z.string().max(1000, 'Максимум 1000 символов').optional(),
+  merchant: z.string().max(255).optional(),
+});
+type EditFormData = z.infer<typeof editSchema>;
+
 function TransactionDetail({ tx, onClose }: { tx: Transaction; onClose: () => void }) {
   const isCredit = tx.type === 'credit';
   const isTransfer = tx.type === 'transfer';
+  const updateMutation = useUpdateTransaction();
+
+  const { register, handleSubmit, formState: { errors } } = useForm<EditFormData>({
+    resolver: zodResolver(editSchema),
+    defaultValues: { description: tx.description ?? '', merchant: tx.merchant ?? '' },
+  });
+
+  const onSubmit = async (data: EditFormData) => {
+    await updateMutation.mutateAsync({ id: tx.id, ...data });
+    onClose();
+  };
 
   return (
-    <div className="p-6 space-y-5">
+    <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-5">
       <div className="flex items-center justify-between">
         <span className={`text-2xl font-bold ${isCredit ? 'text-green-600 dark:text-green-400' : isTransfer ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400'}`}>
           {isCredit ? '+' : isTransfer ? '' : '-'}{formatMoney(tx.amount, tx.currency)}
@@ -196,49 +220,48 @@ function TransactionDetail({ tx, onClose }: { tx: Transaction; onClose: () => vo
           <span className="text-gray-500 dark:text-gray-400">Дата</span>
           <span className="font-medium text-gray-900 dark:text-gray-100">{formatDate(tx.date)}</span>
         </div>
-        {tx.merchant && (
-          <div className="flex justify-between">
-            <span className="text-gray-500 dark:text-gray-400">Получатель</span>
-            <span className="font-medium text-gray-900 dark:text-gray-100">{tx.merchant}</span>
-          </div>
-        )}
-        {tx.description && (
-          <div className="flex justify-between">
-            <span className="text-gray-500 dark:text-gray-400">Описание</span>
-            <span className="font-medium text-gray-900 dark:text-gray-100">{tx.description}</span>
-          </div>
-        )}
-        {tx.categoryName && (
-          <div className="flex justify-between items-center">
-            <span className="text-gray-500 dark:text-gray-400">Категория</span>
-            <span className="flex items-center gap-2">
-              {tx.categoryColor && (
-                <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: tx.categoryColor }} />
-              )}
-              <span className="font-medium text-gray-900 dark:text-gray-100">{tx.categoryName}</span>
-            </span>
-          </div>
-        )}
         <div className="flex justify-between">
           <span className="text-gray-500 dark:text-gray-400">Счёт</span>
           <span className="font-medium text-gray-900 dark:text-gray-100">{tx.accountName}</span>
         </div>
-        {tx.notes && (
-          <div>
-            <span className="text-gray-500 dark:text-gray-400 block mb-1">Заметки</span>
-            <p className="text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-700 rounded-lg p-3">{tx.notes}</p>
-          </div>
-        )}
-        <div className="flex justify-between text-xs text-gray-400">
-          <span>Создано</span>
-          <span>{formatDate(tx.createdAt)}</span>
-        </div>
       </div>
 
-      <Button variant="secondary" className="w-full" onClick={onClose}>
-        Закрыть
-      </Button>
-    </div>
+      <div>
+        <label htmlFor="edit-merchant" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          Получатель / Магазин
+        </label>
+        <input
+          id="edit-merchant"
+          {...register('merchant')}
+          type="text"
+          className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+
+      <div>
+        <label htmlFor="edit-description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          Описание
+        </label>
+        <input
+          id="edit-description"
+          {...register('description')}
+          type="text"
+          className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        {errors.description && (
+          <p className="mt-1 text-xs text-red-500">{errors.description.message}</p>
+        )}
+      </div>
+
+      <div className="flex gap-3 pt-2">
+        <Button type="button" variant="secondary" className="flex-1" onClick={onClose}>
+          Закрыть
+        </Button>
+        <Button type="submit" variant="primary" className="flex-1" disabled={updateMutation.isPending}>
+          {updateMutation.isPending ? 'Сохранение...' : 'Сохранить'}
+        </Button>
+      </div>
+    </form>
   );
 }
 
@@ -447,6 +470,7 @@ export default function TransactionsPage() {
                 return (
                   <div
                     key={tx.id}
+                    role="row"
                     className="flex md:grid md:grid-cols-12 gap-3 md:gap-4 items-center px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer transition-colors"
                     onClick={() => setDetailTx(tx)}
                   >
