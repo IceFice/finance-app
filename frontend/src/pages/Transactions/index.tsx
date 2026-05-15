@@ -40,6 +40,7 @@ function AddForm({ accounts, categories, onClose }: {
     defaultValues: {
       type: 'debit',
       date: format(new Date(), 'yyyy-MM-dd'),
+      accountId: accounts[0]?.id ?? '',
     },
   });
 
@@ -534,6 +535,7 @@ export default function TransactionsPage() {
                         onClick={(e) => { e.stopPropagation(); setDeleteId(tx.id); }}
                         className="hidden md:block text-gray-400 hover:text-red-500 transition-colors ml-2 p-1 rounded"
                         title="Удалить"
+                        aria-label="Удалить"
                       >
                         🗑
                       </button>

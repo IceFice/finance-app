@@ -160,8 +160,11 @@ test('T-19/T-20: zero or negative amount → form validation error', async ({ pa
   await page.getByRole('dialog').getByRole('button', { name: /сохранить|добавить/i }).last().click();
 
   // Ошибка валидации — диалог остаётся открытым
-  await expect(page.getByRole('dialog')).toBeVisible();
-  await expect(page.getByText(/больше нуля|positive|сумма/i)).toBeVisible();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+  // Scope to the dialog's red error paragraph; avoid colliding with the
+  // always-present "Сумма" field label (loose /сумма/ matched the label).
+  await expect(dialog.getByText(/больше нуля|positive/i)).toBeVisible();
 });
 
 // ── T-24: Слишком длинное описание ───────────────────────────────────────────

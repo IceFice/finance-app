@@ -77,7 +77,13 @@ export class TransactionsPage {
   }
 
   async scrollToBottom() {
-    await this.page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-    await this.page.waitForTimeout(500);
+    // The app scrolls inside <main className="overflow-y-auto">, not the
+    // window — scrolling the window does nothing. Scroll the last rendered
+    // row into view so the infinite-scroll sentinel enters the viewport.
+    const count = await this.transactionRows.count();
+    if (count > 0) {
+      await this.transactionRows.nth(count - 1).scrollIntoViewIfNeeded();
+    }
+    await this.page.waitForTimeout(800);
   }
 }
