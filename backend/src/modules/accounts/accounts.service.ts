@@ -1,5 +1,5 @@
 import { pool } from '../../db/pool';
-import { NotFoundError, ForbiddenError } from '../../lib/errors';
+import { NotFoundError } from '../../lib/errors';
 import type { CreateAccountInput, UpdateAccountInput } from './accounts.schema';
 
 interface AccountRow {
