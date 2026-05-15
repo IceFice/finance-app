@@ -34,7 +34,11 @@ api.interceptors.response.use(
   res => res,
   async err => {
     const originalRequest = err.config;
-    if (err.response?.status === 401 && !originalRequest._retry) {
+    // Never attempt a token refresh on auth endpoints — a 401 from /auth/login means
+    // wrong credentials, not an expired token. Refreshing would replace the real error
+    // with a generic "Необходима авторизация" message and confuse the UI.
+    const isAuthEndpoint = /\/auth\/(login|register|refresh)/.test(originalRequest?.url ?? '');
+    if (err.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           subscribeToRefresh(

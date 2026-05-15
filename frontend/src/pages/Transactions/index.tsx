@@ -18,9 +18,11 @@ const addSchema = z.object({
   accountId: z.string().min(1, 'Выберите счёт'),
   categoryId: z.string().optional(),
   type: z.enum(['debit', 'credit', 'transfer']),
-  amount: z.string().min(1, 'Укажите сумму'),
-  description: z.string().optional(),
-  merchant: z.string().optional(),
+  amount: z.string()
+    .min(1, 'Укажите сумму')
+    .refine((v) => parseFloat(v) > 0, 'Сумма должна быть больше нуля'),
+  description: z.string().max(1000, 'Максимум 1000 символов').optional(),
+  merchant: z.string().max(255).optional(),
   date: z.string().min(1, 'Укажите дату'),
 });
 
@@ -169,6 +171,9 @@ function AddForm({ accounts, categories, onClose }: {
           placeholder="Необязательное описание"
           className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
+        {errors.description && (
+          <p className="mt-1 text-xs text-red-500">{errors.description.message}</p>
+        )}
       </div>
 
       <div className="flex gap-3 pt-2">

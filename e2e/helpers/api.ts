@@ -45,10 +45,16 @@ export async function createTransaction(token: string, opts: {
   accountId: string;
   categoryId?: string;
   amount: string;
-  type: 'income' | 'expense';
+  type: 'income' | 'expense' | 'debit' | 'credit';
   date?: string;
   description?: string;
 }) {
+  // Backend accepts 'debit' | 'credit' | 'transfer'. Map legacy helper names.
+  const backendType =
+    opts.type === 'income' ? 'credit' :
+    opts.type === 'expense' ? 'debit' :
+    opts.type;
+
   const res = await fetch(`${BASE}/transactions`, {
     method: 'POST',
     headers: headers(token),
@@ -56,7 +62,7 @@ export async function createTransaction(token: string, opts: {
       accountId: opts.accountId,
       categoryId: opts.categoryId ?? null,
       amount: opts.amount,
-      type: opts.type,
+      type: backendType,
       currency: 'RUB',
       date: opts.date ?? new Date().toISOString().split('T')[0],
       description: opts.description ?? 'Test transaction',

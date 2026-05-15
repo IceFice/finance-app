@@ -21,10 +21,19 @@ function mapBudget(row: BudgetRow & { spent?: string; category_name?: string; ca
   };
 }
 
+export async function getById(userId: string, budgetId: string) {
+  const res = await pool.query<BudgetRow>(
+    `SELECT * FROM budgets WHERE id = $1 AND user_id = $2 AND is_active = true`,
+    [budgetId, userId]
+  );
+  if (!res.rows[0]) throw new NotFoundError('Budget');
+  return mapBudget(res.rows[0]);
+}
+
 export async function list(userId: string) {
   const res = await pool.query<BudgetRow & { spent: string; category_name: string; category_color: string }>(
     `SELECT b.*, c.name AS category_name, c.color AS category_color,
-      COALESCE(SUM(ABS(t.amount_base)), 0)::TEXT AS spent
+      COALESCE(SUM(ABS(t.amount_base)), 0)::NUMERIC(15,2)::TEXT AS spent
      FROM budgets b
      LEFT JOIN categories c ON c.id = b.category_id
      LEFT JOIN transactions t ON t.category_id = b.category_id
@@ -42,6 +51,17 @@ export async function list(userId: string) {
     [userId]
   );
   return res.rows.map(mapBudget);
+}
+
+export async function progress(userId: string) {
+  const rows = await list(userId);
+  return rows.map((b) => {
+    const spentNum = parseFloat(b.spent);
+    const amountNum = parseFloat(b.amount);
+    const percentage = amountNum > 0 ? ((spentNum / amountNum) * 100).toFixed(2) : '0.00';
+    const status = spentNum > amountNum ? 'exceeded' : spentNum >= amountNum * 0.8 ? 'warning' : 'ok';
+    return { ...b, percentage, status };
+  });
 }
 
 export async function create(userId: string, input: CreateBudgetInput) {

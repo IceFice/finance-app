@@ -43,11 +43,18 @@ export class TransactionsPage {
   async fillAndSaveTransaction(opts: {
     amount: string;
     description?: string;
-    type?: 'income' | 'expense';
+    type?: 'income' | 'expense' | 'debit' | 'credit';
   }) {
     await this.amountInput.fill(opts.amount);
     if (opts.description) await this.descriptionInput.fill(opts.description);
-    if (opts.type) await this.typeSelect.selectOption(opts.type);
+    if (opts.type) {
+      // UI select uses backend values ('debit'/'credit'/'transfer')
+      const selectValue =
+        opts.type === 'income' ? 'credit' :
+        opts.type === 'expense' ? 'debit' :
+        opts.type;
+      await this.typeSelect.selectOption(selectValue);
+    }
     await this.saveButton.click();
     await expect(this.slideOver).not.toBeVisible({ timeout: 5_000 });
   }

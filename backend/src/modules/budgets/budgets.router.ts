@@ -13,6 +13,15 @@ budgetsRouter.get('/', asyncHandler(async (req: Request, res: Response) => {
   sendSuccess(res, await budgetsService.list(req.userId));
 }));
 
+// /progress must come BEFORE /:id so Express doesn't treat "progress" as an id
+budgetsRouter.get('/progress', asyncHandler(async (req: Request, res: Response) => {
+  sendSuccess(res, await budgetsService.progress(req.userId));
+}));
+
+budgetsRouter.get('/:id', asyncHandler(async (req: Request, res: Response) => {
+  sendSuccess(res, await budgetsService.getById(req.userId, req.params['id'] as string));
+}));
+
 budgetsRouter.post('/', asyncHandler(async (req: Request, res: Response) => {
   const input = createBudgetSchema.parse(req.body);
   sendSuccess(res, await budgetsService.create(req.userId, input), 201);
