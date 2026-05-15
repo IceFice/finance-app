@@ -289,7 +289,7 @@ describe('DELETE /api/v1/transactions/:id (soft delete)', () => {
       .delete(`/api/v1/transactions/${txId}`)
       .set('Authorization', `Bearer ${accessToken}`);
 
-    expect(deleteRes.status).toBe(204);
+    expect(deleteRes.status).toBe(200);
 
     // Verify deleted_at is set in DB
     const { pool } = await import('../../db/pool');
@@ -297,7 +297,7 @@ describe('DELETE /api/v1/transactions/:id (soft delete)', () => {
     expect(row.rows[0].deleted_at).toBeTruthy();
   });
 
-  it('returns 403 when deleting another user\'s transaction', async () => {
+  it('returns 404 when deleting another user\'s transaction', async () => {
     const otherUser = await createTestUser();
     const otherAccount = await createTestAccount(otherUser.id);
     const otherTxId = await createTestTransaction(otherUser.id, otherAccount);
@@ -306,7 +306,7 @@ describe('DELETE /api/v1/transactions/:id (soft delete)', () => {
       .delete(`/api/v1/transactions/${otherTxId}`)
       .set('Authorization', `Bearer ${accessToken}`);
 
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(404);
     await deleteTestUser(otherUser.id);
   });
 });

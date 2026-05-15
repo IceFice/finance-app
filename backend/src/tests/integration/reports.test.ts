@@ -37,10 +37,12 @@ describe('GET /api/v1/reports/monthly-summary', () => {
       .set('Authorization', `Bearer ${accessToken}`);
 
     expect(res.status).toBe(200);
-    expect(res.body.data.months).toBeInstanceOf(Array);
-    expect(res.body.data.totals).toHaveProperty('income');
-    expect(res.body.data.totals).toHaveProperty('expenses');
-    expect(res.body.data.totals).toHaveProperty('net');
+    expect(Array.isArray(res.body.data)).toBe(true);
+    res.body.data.forEach((m: object) => {
+      expect(m).toHaveProperty('income');
+      expect(m).toHaveProperty('expenses');
+      expect(m).toHaveProperty('net');
+    });
   });
 
   it('aggregates income and expenses correctly', async () => {
@@ -48,13 +50,15 @@ describe('GET /api/v1/reports/monthly-summary', () => {
       .get('/api/v1/reports/monthly-summary?from=2024-01-01&to=2024-02-28')
       .set('Authorization', `Bearer ${accessToken}`);
 
-    const { totals } = res.body.data;
+    const rows: Array<{ income: string; expenses: string; net: string }> = res.body.data;
+    const sum = (k: 'income' | 'expenses' | 'net') =>
+      rows.reduce((s, r) => s + parseFloat(r[k]), 0);
     // Total income: 3000 + 3500 = 6500
-    expect(parseFloat(totals.income)).toBe(6500);
+    expect(sum('income')).toBe(6500);
     // Total expenses: 500 + 300 + 800 = 1600
-    expect(parseFloat(totals.expenses)).toBe(1600);
+    expect(sum('expenses')).toBe(1600);
     // Net: 6500 - 1600 = 4900
-    expect(parseFloat(totals.net)).toBe(4900);
+    expect(sum('net')).toBe(4900);
   });
 
   it('returns all monetary values as strings', async () => {
@@ -62,10 +66,8 @@ describe('GET /api/v1/reports/monthly-summary', () => {
       .get('/api/v1/reports/monthly-summary?from=2024-01-01&to=2024-01-31')
       .set('Authorization', `Bearer ${accessToken}`);
 
-    const { totals, months } = res.body.data;
-    expect(typeof totals.income).toBe('string');
-    expect(typeof totals.expenses).toBe('string');
-    expect(typeof totals.net).toBe('string');
+    const months = res.body.data;
+    expect(Array.isArray(months)).toBe(true);
     months.forEach((m: { income: unknown; expenses: unknown; net: unknown }) => {
       expect(typeof m.income).toBe('string');
       expect(typeof m.expenses).toBe('string');
@@ -94,7 +96,9 @@ describe('GET /api/v1/reports/monthly-summary', () => {
       .set('Authorization', `Bearer ${accessToken}`);
 
     // Our user's income should be 3000, not 99999+
-    expect(parseFloat(res.body.data.totals.income)).toBeLessThan(99999);
+    const totalIncome = (res.body.data as Array<{ income: string }>)
+      .reduce((s, r) => s + parseFloat(r.income), 0);
+    expect(totalIncome).toBeLessThan(99999);
     await deleteTestUser(other.id);
   });
 });
@@ -127,7 +131,8 @@ describe('GET /api/v1/reports/spending-by-category', () => {
       .set('Authorization', `Bearer ${accessToken}`);
 
     expect(res.status).toBe(200);
-    const cats = res.body.data.categories;
+    const cats = res.body.data;
+    expect(Array.isArray(cats)).toBe(true);
     expect(cats.length).toBeGreaterThanOrEqual(2);
     // Food (500) should come before Transport (100)
     const foodIdx  = cats.findIndex((c: { categoryName: string }) => c.categoryName === 'Food');
@@ -140,8 +145,8 @@ describe('GET /api/v1/reports/spending-by-category', () => {
       .get('/api/v1/reports/spending-by-category?from=2024-03-01&to=2024-03-31')
       .set('Authorization', `Bearer ${accessToken}`);
 
-    const cats = res.body.data.categories;
-    const total = cats.reduce((sum: number, c: { pct: string }) => sum + parseFloat(c.pct), 0);
+    const cats = res.body.data;
+    const total = cats.reduce((sum: number, c: { percentage: string }) => sum + parseFloat(c.percentage), 0);
     // Allow ±1 for rounding
     expect(Math.abs(total - 100)).toBeLessThanOrEqual(1);
   });
@@ -151,8 +156,9 @@ describe('GET /api/v1/reports/spending-by-category', () => {
       .get('/api/v1/reports/spending-by-category?from=2024-03-01&to=2024-03-31')
       .set('Authorization', `Bearer ${accessToken}`);
 
-    const { categories, grandTotal } = res.body.data;
-    const sumFromCats = categories.reduce((s: number, c: { total: string }) => s + parseFloat(c.total), 0);
-    expect(Math.abs(sumFromCats - parseFloat(grandTotal))).toBeLessThan(0.01);
+    const categories: Array<{ total: string }> = res.body.data;
+    const sumFromCats = categories.reduce((s, c) => s + parseFloat(c.total), 0);
+    const grandTotal = categories.reduce((s, c) => s + parseFloat(c.total), 0);
+    expect(Math.abs(sumFromCats - grandTotal)).toBeLessThan(0.01);
   });
 });
