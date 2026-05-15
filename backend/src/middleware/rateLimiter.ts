@@ -67,6 +67,19 @@ export const authLimiter = rateLimiter({
   },
 });
 
+// Separate limiter for /auth/refresh — keyed by cookie token (unique per session)
+// so each user session has its own bucket. Using the email-based authLimiter here
+// would collapse ALL refresh calls to the same empty-email key and exhaust in 5 calls.
+export const refreshLimiter = rateLimiter({
+  windowSec: 60,
+  max: 20,
+  keyFn: (req) => {
+    const token = (req.cookies as { refreshToken?: string } | undefined)?.refreshToken ?? req.ip ?? '';
+    // First 16 chars of the random hex token are sufficient for bucketing
+    return `rl:refresh:${token.slice(0, 16) || req.ip}`;
+  },
+});
+
 export const generalLimiter = rateLimiter({
   windowSec: 60,
   max: 200,

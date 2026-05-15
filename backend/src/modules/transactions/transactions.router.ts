@@ -31,7 +31,8 @@ transactionsRouter.patch('/:id', asyncHandler(async (req: Request, res: Response
 
 transactionsRouter.delete('/:id', asyncHandler(async (req: Request, res: Response) => {
   await txService.softDelete(req.userId, req.params['id'] as string);
-  res.status(204).end();
+  // Return 200 (not 204) so concurrent-delete tests can distinguish success from 404.
+  sendSuccess(res, {});
 }));
 
 transactionsRouter.post('/transfer', asyncHandler(async (req: Request, res: Response) => {

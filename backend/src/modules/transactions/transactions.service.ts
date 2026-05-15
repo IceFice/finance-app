@@ -1,6 +1,6 @@
 import { pool } from '../../db/pool';
 import { encodeCursor, decodeCursor } from '../../lib/cursor';
-import { NotFoundError, ForbiddenError, DomainError } from '../../lib/errors';
+import { NotFoundError, DomainError } from '../../lib/errors';
 import type { CreateTransactionInput, UpdateTransactionInput, CreateTransferInput, ListQuery } from './transactions.schema';
 
 interface TransactionRow {
@@ -80,8 +80,9 @@ export async function getById(userId: string, transactionId: string) {
      WHERE t.id = $1 AND t.deleted_at IS NULL`,
     [transactionId]
   );
-  if (!res.rows[0]) throw new NotFoundError('Transaction');
-  if (res.rows[0].user_id !== userId) throw new ForbiddenError();
+  // Return 404 regardless of whether the record doesn't exist or belongs to another
+  // user — never reveal the existence of other users' resources (security best practice).
+  if (!res.rows[0] || res.rows[0].user_id !== userId) throw new NotFoundError('Transaction');
   return mapRow(res.rows[0]);
 }
 

@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { asyncHandler } from '../../lib/asyncHandler';
 import { sendSuccess, sendError } from '../../lib/response';
 import { authenticate } from '../../middleware/authenticate';
-import { authLimiter } from '../../middleware/rateLimiter';
+import { authLimiter, refreshLimiter } from '../../middleware/rateLimiter';
 import * as authService from './auth.service';
 import { registerSchema, loginSchema, changePasswordSchema } from './auth.schema';
 import { isProd } from '../../config';
@@ -31,7 +31,7 @@ authRouter.post('/login', authLimiter, asyncHandler(async (req: Request, res: Re
   sendSuccess(res, { accessToken, userId });
 }));
 
-authRouter.post('/refresh', authLimiter, asyncHandler(async (req: Request, res: Response) => {
+authRouter.post('/refresh', refreshLimiter, asyncHandler(async (req: Request, res: Response) => {
   // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
   const token = req.cookies?.refreshToken as string | undefined;
   if (!token) {

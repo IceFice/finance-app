@@ -30,8 +30,7 @@ export async function getById(userId: string, accountId: string) {
     `SELECT * FROM accounts WHERE id = $1 AND deleted_at IS NULL`,
     [accountId]
   );
-  if (!res.rows[0]) throw new NotFoundError('Account');
-  if (res.rows[0].user_id !== userId) throw new ForbiddenError();
+  if (!res.rows[0] || res.rows[0].user_id !== userId) throw new NotFoundError('Account');
   return mapAccount(res.rows[0]);
 }
 
