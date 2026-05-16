@@ -15,8 +15,10 @@ jobs:
   deploy-staging:
     name: "Deploy → staging"
     runs-on: ubuntu-latest
-    # Only deploy if CI passed — never deploy broken builds
-    if: github.event.workflow_run.conclusion == 'success'
+    # Only deploy if CI passed — never deploy broken builds.
+    # Infra gate: staging VPS + secrets not provisioned yet; set repo
+    # variable STAGING_DEPLOY_ENABLED='true' once they are.
+    if: ${{ github.event.workflow_run.conclusion == 'success' && vars.STAGING_DEPLOY_ENABLED == 'true' }}
 
     environment:
       name: staging
