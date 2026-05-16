@@ -88,7 +88,10 @@ jobs:
 
             APP_DIR="${{ secrets.PROD_DEPLOY_PATH }}"
             TAG="${{ env.IMAGE_TAG }}"
-            REPO="ghcr.io/${{ github.repository }}"
+            # GHCR repo names must be lowercase; github.repository keeps the
+            # owner's original case (IceFice) — lowercase it to match the
+            # images docker/metadata-action pushed.
+            REPO="ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')"
             COMPOSE="docker compose -f docker-compose.prod.yml"
 
             cd "$APP_DIR"
