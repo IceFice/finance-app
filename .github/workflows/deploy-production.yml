@@ -148,7 +148,7 @@ jobs:
 
       # ── Slack: success ──────────────────────────────────────────────────────
       - name: Notify success
-        if: success()
+        if: ${{ success() && secrets.SLACK_WEBHOOK_URL != '' }}
         run: |
           curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
             -H "Content-Type: application/json" \
@@ -169,7 +169,7 @@ jobs:
 
       # ── Slack: failure ──────────────────────────────────────────────────────
       - name: Notify failure
-        if: failure()
+        if: ${{ failure() && secrets.SLACK_WEBHOOK_URL != '' }}
         run: |
           curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
             -H "Content-Type: application/json" \
