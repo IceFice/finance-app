@@ -18,6 +18,10 @@
 secrets/
 .secrets
 
+# Server-side deploy artifacts (generated on the VPS, never committed)
+deploy/nginx/active.conf
+deploy/certbot/
+
 # ── Node.js ─────────────────────────────────────────────────
 node_modules/
 npm-debug.log*

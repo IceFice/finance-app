@@ -74,8 +74,8 @@ jobs:
           echo "| Triggered by | \`${{ github.actor }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| Commit | \`${{ github.event.workflow_run.head_sha || github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
 
-      # ── Zero-downtime deploy via SSH ───────────────────────────────────────
-      - name: Deploy via SSH (zero-downtime)
+      # ── Deploy via SSH (docker-compose rolling update) ─────────────────────
+      - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.PROD_HOST }}
@@ -86,74 +86,47 @@ jobs:
           script: |
             set -euo pipefail
 
-            IMAGE="ghcr.io/${{ github.repository }}/backend:${{ env.IMAGE_TAG }}"
-            DEPLOY_PATH="${{ secrets.PROD_DEPLOY_PATH }}"
+            APP_DIR="${{ secrets.PROD_DEPLOY_PATH }}"
+            TAG="${{ env.IMAGE_TAG }}"
+            REPO="ghcr.io/${{ github.repository }}"
+            COMPOSE="docker compose -f docker-compose.prod.yml"
 
-            echo "▶ Logging in to GHCR..."
+            cd "$APP_DIR"
+
+            echo "▶ Sync deploy assets (compose, nginx, migrations)"
+            git fetch --depth=1 origin main
+            git reset --hard origin/main
+
+            echo "▶ Log in to GHCR"
             echo "${{ secrets.GITHUB_TOKEN }}" | \
               docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
-            echo "▶ Pulling image: $IMAGE"
-            docker pull "$IMAGE"
+            echo "▶ Pin image tags ($TAG) in .env"
+            sed -i "s#^BACKEND_IMAGE=.*#BACKEND_IMAGE=${REPO}/backend:${TAG}#"  .env
+            sed -i "s#^FRONTEND_IMAGE=.*#FRONTEND_IMAGE=${REPO}/frontend:${TAG}#" .env
 
-            cd "$DEPLOY_PATH"
+            echo "▶ Pull new images"
+            $COMPOSE pull backend frontend
 
-            # ── Zero-downtime swap ───────────────────────────────────────────
-            # 1. Rename running container to "old"
-            OLD_CONTAINER=$(docker compose ps -q backend 2>/dev/null | head -1 || true)
-            if [ -n "$OLD_CONTAINER" ]; then
-              docker rename "$OLD_CONTAINER" "backend-old-$(date +%s)" || true
-            fi
+            echo "▶ Apply stack (postgres/redis stay up; backend+nginx recreate)"
+            $COMPOSE up -d --remove-orphans
 
-            # 2. Start new container alongside old one
-            echo "▶ Starting new container..."
-            BACKEND_IMAGE="$IMAGE" \
-              docker compose up -d --no-deps --scale backend=1 --no-recreate backend 2>/dev/null || \
-            BACKEND_IMAGE="$IMAGE" \
-              docker compose up -d --no-deps --force-recreate backend
-
-            # 3. Wait for new container to be healthy
-            echo "▶ Waiting for new container to be healthy..."
+            echo "▶ Wait for backend health"
             for i in $(seq 1 18); do
-              HTTP_STATUS=$(curl -o /dev/null -s -w "%{http_code}" \
-                "${PROD_HEALTH_URL:-http://localhost:4000}/health" || echo "000")
-              if [ "$HTTP_STATUS" = "200" ]; then
-                echo "  New container healthy ✅ (attempt $i)"
-                break
+              if $COMPOSE exec -T backend node -e "require('http').get('http://localhost:4000/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"; then
+                echo "  backend healthy ✅ (attempt $i)"; break
               fi
-              echo "  Attempt $i/18 — HTTP $HTTP_STATUS — waiting 5s..."
-              sleep 5
-              if [ "$i" -eq 18 ]; then
-                echo "❌ New container failed health check — rolling back"
-                # Restore old container
-                if [ -n "$OLD_CONTAINER" ]; then
-                  docker start "$OLD_CONTAINER" || true
-                  docker rename "$OLD_CONTAINER" "backend" || true
-                fi
-                docker compose up -d --no-deps --force-recreate backend
-                exit 1
-              fi
+              [ "$i" -eq 18 ] && { echo "❌ backend unhealthy — recent logs:"; $COMPOSE logs --tail=50 backend; exit 1; }
+              echo "  attempt $i/18 — waiting 5s…"; sleep 5
             done
 
-            # 4. Run migrations on the new container
-            echo "▶ Running database migrations..."
-            docker compose exec -T backend npm run migrate
-
-            # 5. Remove old container
-            if [ -n "$OLD_CONTAINER" ]; then
-              echo "▶ Removing old container..."
-              docker stop "$OLD_CONTAINER" 2>/dev/null || true
-              docker rm   "$OLD_CONTAINER" 2>/dev/null || true
-            fi
-
-            # 6. Clean up dangling images
-            docker image prune -f --filter "label=org.opencontainers.image.source=https://github.com/${{ github.repository }}" \
+            echo "▶ Prune dangling images"
+            docker image prune -f \
+              --filter "label=org.opencontainers.image.source=https://github.com/${{ github.repository }}" \
               2>/dev/null || true
 
             echo ""
-            echo "✅ Production deploy complete"
-            echo "   Image: $IMAGE"
-            echo "   Host:  ${{ secrets.PROD_HOST }}"
+            echo "✅ Production deploy complete (tag: $TAG)"
 
       # ── Post-deploy health check from runner ────────────────────────────────
       - name: Post-deploy health check

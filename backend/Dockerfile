@@ -1,22 +1,24 @@
 # syntax=docker/dockerfile:1.7
+# Build context = repository root (matches frontend/Dockerfile and CI).
+#   docker build -f backend/Dockerfile -t <img> .
 
 # ── Stage 1: deps ─────────────────────────────────────────────────────────────
 FROM node:20-alpine AS deps
 WORKDIR /app
 
 # Install only production dependencies
-COPY package.json package-lock.json ./
+COPY backend/package.json backend/package-lock.json ./
 RUN npm ci --omit=dev --ignore-scripts
 
 # ── Stage 2: build ────────────────────────────────────────────────────────────
 FROM node:20-alpine AS build
 WORKDIR /app
 
-COPY package.json package-lock.json ./
+COPY backend/package.json backend/package-lock.json ./
 RUN npm ci --ignore-scripts
 
-COPY tsconfig.json ./
-COPY src ./src
+COPY backend/tsconfig.json ./
+COPY backend/src ./src
 
 RUN npm run build
 
@@ -36,7 +38,7 @@ COPY --from=deps  --chown=nodejs:nodejs /app/node_modules ./node_modules
 COPY --from=build --chown=nodejs:nodejs /app/dist ./dist
 
 # Copy package.json for runtime metadata (no secrets here)
-COPY --chown=nodejs:nodejs package.json ./
+COPY --chown=nodejs:nodejs backend/package.json ./
 
 # Drop to non-root user
 USER nodejs

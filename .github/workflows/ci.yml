@@ -296,8 +296,14 @@ jobs:
       contents: read
       packages: write   # required to push to ghcr.io
 
-    outputs:
-      image-tag: ${{ steps.meta.outputs.version }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - component: backend
+            dockerfile: ./backend/Dockerfile
+          - component: frontend
+            dockerfile: ./frontend/Dockerfile
 
     steps:
       - uses: actions/checkout@v4
@@ -313,34 +319,37 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       # Generates tags:
-      #   ghcr.io/owner/repo/backend:sha-<commit>
-      #   ghcr.io/owner/repo/backend:develop  (or :main)
-      #   ghcr.io/owner/repo/backend:latest   (main only)
+      #   ghcr.io/owner/repo/<component>:sha-<commit>
+      #   ghcr.io/owner/repo/<component>:main  (or :develop)
+      #   ghcr.io/owner/repo/<component>:latest   (main only)
       - name: Extract image metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}/backend
+          images: ghcr.io/${{ github.repository }}/${{ matrix.component }}
           tags: |
             type=sha,prefix=sha-,format=short
             type=ref,event=branch
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
 
-      - name: Build and push Docker image
+      # Both Dockerfiles use the repository root as build context:
+      #   backend/Dockerfile  → copies backend/* (+ standalone lockfile)
+      #   frontend/Dockerfile → copies frontend/* + deploy/nginx/app.conf
+      - name: Build and push ${{ matrix.component }} image
         uses: docker/build-push-action@v5
         with:
-          context: ./backend
-          file: ./backend/Dockerfile
+          context: .
+          file: ${{ matrix.dockerfile }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           # BuildKit layer cache — drastically speeds up repeat builds
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ matrix.component }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.component }}
 
       - name: Image digest summary
         run: |
-          echo "## Docker Image Published 🐳" >> $GITHUB_STEP_SUMMARY
+          echo "## Docker Image Published — ${{ matrix.component }} 🐳" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY

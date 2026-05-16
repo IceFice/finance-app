@@ -1,0 +1,11 @@
+# Force LF for files executed/parsed on Linux servers & containers.
+# CRLF in a shell script breaks with: `bash: \r: command not found`.
+*.sh            text eol=lf
+*.bash          text eol=lf
+Dockerfile      text eol=lf
+*.conf          text eol=lf
+*.yml           text eol=lf
+*.yaml          text eol=lf
+.env.*          text eol=lf
+.dockerignore   text eol=lf
+.gitattributes  text eol=lf

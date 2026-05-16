@@ -1,0 +1,29 @@
+# Build context = repo root for both backend/ and frontend/ images.
+# Keep the context lean (RAM/CI speed) without excluding files the
+# Dockerfiles COPY (backend/src, frontend/src, deploy/nginx, *.json).
+
+**/node_modules
+**/dist
+**/.git
+**/.github
+**/coverage
+**/.vscode
+**/.idea
+
+# Tests & local artifacts (not needed in images)
+e2e
+playwright-report
+test-results
+**/*.test.ts
+**/__tests__
+backend/src/tests
+
+# Secrets / env (never bake into an image layer)
+**/.env
+**/.env.*
+!**/.env.example
+deploy/certbot
+
+# Docs & misc
+*.md
+**/*.log
