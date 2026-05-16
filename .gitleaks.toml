@@ -62,6 +62,10 @@ paths = [
   '''README.md''',
   '''.*\.test\.ts$''',
   '''.*\.spec\.ts$''',
+  # Compose files use ${VAR} interpolation only — no real credentials;
+  # the postgres:// string is assembled from env vars at runtime.
+  '''docker-compose\.yml''',
+  '''docker-compose\.prod\.yml''',
 ]
 
 # Allow placeholder strings
