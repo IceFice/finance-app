@@ -17,7 +17,7 @@ WORKDIR /app
 COPY backend/package.json backend/package-lock.json ./
 RUN npm ci --ignore-scripts
 
-COPY backend/tsconfig.json ./
+COPY backend/tsconfig.json backend/tsconfig.build.json ./
 COPY backend/src ./src
 
 RUN npm run build
