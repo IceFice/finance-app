@@ -167,13 +167,17 @@ jobs:
         working-directory: backend
         run: |
           npm ci --ignore-scripts
-          cyclonedx-npm --output-format json --output-file sbom-backend.json
+          # --ignore-npm-errors: `npm ls` runs in strict mode and reports
+          # ELSPROBLEMS for benign tree quirks (e.g. @types/* peer deps,
+          # deduped picomatch) which are not vulnerabilities and must not
+          # block SBOM generation.
+          cyclonedx-npm --ignore-npm-errors --output-format json --output-file sbom-backend.json
 
       - name: Generate frontend SBOM
         working-directory: frontend
         run: |
           npm ci --ignore-scripts
-          cyclonedx-npm --output-format json --output-file sbom-frontend.json
+          cyclonedx-npm --ignore-npm-errors --output-format json --output-file sbom-frontend.json
 
       - name: Upload SBOMs
         uses: actions/upload-artifact@v4
