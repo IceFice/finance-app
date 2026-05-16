@@ -35,7 +35,7 @@ function AddForm({ accounts, categories, onClose }: {
   onClose: () => void;
 }) {
   const createMutation = useCreateTransaction();
-  const { register, handleSubmit, watch, formState: { errors } } = useForm<AddFormData>({
+  const { register, handleSubmit, watch, setValue, getValues, formState: { errors } } = useForm<AddFormData>({
     resolver: zodResolver(addSchema),
     defaultValues: {
       type: 'debit',
@@ -43,6 +43,15 @@ function AddForm({ accounts, categories, onClose }: {
       accountId: accounts[0]?.id ?? '',
     },
   });
+
+  // AddForm is always mounted, so useForm may initialize before the accounts
+  // query resolves (defaultValues are captured once). Backfill the account
+  // once it's available, without clobbering a user's manual choice.
+  useEffect(() => {
+    if (accounts[0]?.id && !getValues('accountId')) {
+      setValue('accountId', accounts[0].id);
+    }
+  }, [accounts, getValues, setValue]);
 
   const txType = watch('type');
 
