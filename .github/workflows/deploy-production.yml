@@ -151,9 +151,12 @@ jobs:
 
       # ── Slack: success ──────────────────────────────────────────────────────
       - name: Notify success
-        if: ${{ success() && secrets.SLACK_WEBHOOK_URL != '' }}
+        if: success()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
-          curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
+          [ -z "$SLACK_WEBHOOK_URL" ] && { echo "No SLACK_WEBHOOK_URL — skipping notification"; exit 0; }
+          curl -s -X POST "$SLACK_WEBHOOK_URL" \
             -H "Content-Type: application/json" \
             -d '{
               "text": "✅ *Production deploy succeeded* 🚀",
@@ -172,9 +175,12 @@ jobs:
 
       # ── Slack: failure ──────────────────────────────────────────────────────
       - name: Notify failure
-        if: ${{ failure() && secrets.SLACK_WEBHOOK_URL != '' }}
+        if: failure()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
-          curl -s -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
+          [ -z "$SLACK_WEBHOOK_URL" ] && { echo "No SLACK_WEBHOOK_URL — skipping notification"; exit 0; }
+          curl -s -X POST "$SLACK_WEBHOOK_URL" \
             -H "Content-Type: application/json" \
             -d '{
               "text": "🔴 *PRODUCTION DEPLOY FAILED* — immediate attention required",
