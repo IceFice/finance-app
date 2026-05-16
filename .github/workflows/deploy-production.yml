@@ -115,13 +115,21 @@ jobs:
             $COMPOSE up -d --remove-orphans
 
             echo "▶ Wait for backend health"
+            healthy=0
             for i in $(seq 1 18); do
               if $COMPOSE exec -T backend node -e "require('http').get('http://localhost:4000/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"; then
-                echo "  backend healthy ✅ (attempt $i)"; break
+                echo "  backend healthy ✅ (attempt $i)"
+                healthy=1
+                break
               fi
-              [ "$i" -eq 18 ] && { echo "❌ backend unhealthy — recent logs:"; $COMPOSE logs --tail=50 backend; exit 1; }
-              echo "  attempt $i/18 — waiting 5s…"; sleep 5
+              echo "  attempt $i/18 — backend not ready, waiting 5s…"
+              sleep 5
             done
+            if [ "$healthy" -ne 1 ]; then
+              echo "❌ backend unhealthy after 18 attempts — recent logs:"
+              $COMPOSE logs --tail=50 backend
+              exit 1
+            fi
 
             echo "▶ Prune dangling images"
             docker image prune -f \
