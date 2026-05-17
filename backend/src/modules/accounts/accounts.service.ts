@@ -1,4 +1,4 @@
-import { pool } from '../../db/pool';
+import { userQuery, withUserContext } from '../../db/context';
 import { NotFoundError } from '../../lib/errors';
 import type { CreateAccountInput, UpdateAccountInput } from './accounts.schema';
 
@@ -18,7 +18,8 @@ function mapAccount(row: AccountRow) {
 }
 
 export async function list(userId: string) {
-  const res = await pool.query<AccountRow>(
+  const res = await userQuery<AccountRow>(
+    userId,
     `SELECT * FROM accounts WHERE user_id = $1 AND deleted_at IS NULL ORDER BY created_at ASC`,
     [userId]
   );
@@ -26,7 +27,9 @@ export async function list(userId: string) {
 }
 
 export async function getById(userId: string, accountId: string) {
-  const res = await pool.query<AccountRow>(
+  // RLS scopes this to the caller; a foreign id simply returns no row → 404.
+  const res = await userQuery<AccountRow>(
+    userId,
     `SELECT * FROM accounts WHERE id = $1 AND deleted_at IS NULL`,
     [accountId]
   );
@@ -35,7 +38,8 @@ export async function getById(userId: string, accountId: string) {
 }
 
 export async function create(userId: string, input: CreateAccountInput) {
-  const res = await pool.query<AccountRow>(
+  const res = await userQuery<AccountRow>(
+    userId,
     `INSERT INTO accounts (user_id, name, type, currency, balance, color, icon)
      VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
     [userId, input.name, input.type, input.currency, input.balance, input.color ?? null, input.icon ?? null]
@@ -44,26 +48,41 @@ export async function create(userId: string, input: CreateAccountInput) {
 }
 
 export async function update(userId: string, accountId: string, input: UpdateAccountInput) {
-  await getById(userId, accountId);
-  const fields: string[] = [];
-  const values: unknown[] = [];
-  let i = 1;
-  if (input.name !== undefined) { fields.push(`name = $${i++}`); values.push(input.name); }
-  if (input.type !== undefined) { fields.push(`type = $${i++}`); values.push(input.type); }
-  if (input.currency !== undefined) { fields.push(`currency = $${i++}`); values.push(input.currency); }
-  if (input.balance !== undefined) { fields.push(`balance = $${i++}`); values.push(input.balance); }
-  if (input.color !== undefined) { fields.push(`color = $${i++}`); values.push(input.color); }
-  if (input.icon !== undefined) { fields.push(`icon = $${i++}`); values.push(input.icon); }
-  if (fields.length === 0) return getById(userId, accountId);
-  values.push(accountId);
-  const res = await pool.query<AccountRow>(
-    `UPDATE accounts SET ${fields.join(', ')} WHERE id = $${i} RETURNING *`,
-    values
-  );
-  return mapAccount(res.rows[0]);
+  return withUserContext(userId, async (db) => {
+    const check = await db.query<AccountRow>(
+      `SELECT * FROM accounts WHERE id = $1 AND deleted_at IS NULL`,
+      [accountId]
+    );
+    if (!check.rows[0]) throw new NotFoundError('Account');
+
+    const fields: string[] = [];
+    const values: unknown[] = [];
+    let i = 1;
+    if (input.name !== undefined) { fields.push(`name = $${i++}`); values.push(input.name); }
+    if (input.type !== undefined) { fields.push(`type = $${i++}`); values.push(input.type); }
+    if (input.currency !== undefined) { fields.push(`currency = $${i++}`); values.push(input.currency); }
+    if (input.balance !== undefined) { fields.push(`balance = $${i++}`); values.push(input.balance); }
+    if (input.color !== undefined) { fields.push(`color = $${i++}`); values.push(input.color); }
+    if (input.icon !== undefined) { fields.push(`icon = $${i++}`); values.push(input.icon); }
+    if (fields.length === 0) return mapAccount(check.rows[0]);
+    values.push(accountId);
+    const res = await db.query<AccountRow>(
+      // RLS guarantees only the owner's row is affected; user_id added as
+      // explicit defence-in-depth.
+      `UPDATE accounts SET ${fields.join(', ')} WHERE id = $${i} RETURNING *`,
+      values
+    );
+    return mapAccount(res.rows[0]);
+  });
 }
 
 export async function remove(userId: string, accountId: string) {
-  await getById(userId, accountId);
-  await pool.query(`UPDATE accounts SET deleted_at = NOW() WHERE id = $1`, [accountId]);
+  return withUserContext(userId, async (db) => {
+    const res = await db.query(
+      `UPDATE accounts SET deleted_at = NOW()
+       WHERE id = $1 AND deleted_at IS NULL RETURNING id`,
+      [accountId]
+    );
+    if (res.rowCount === 0) throw new NotFoundError('Account');
+  });
 }

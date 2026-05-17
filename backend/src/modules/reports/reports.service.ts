@@ -1,10 +1,11 @@
-import { pool } from '../../db/pool';
+import { userQuery } from '../../db/context';
 import { sumMonthlyTotals, calcCategoryPct } from './reports.math';
 
 export async function monthlySummary(userId: string, from: string, to: string) {
-  const res = await pool.query<{
+  const res = await userQuery<{
     month: string; income: string; expenses: string; net: string; tx_count: string;
   }>(
+    userId,
     `SELECT
        date_trunc('month', date)::DATE::TEXT AS month,
        COALESCE(SUM(amount_base) FILTER (WHERE type = 'credit'), 0)::NUMERIC(15,2)::TEXT AS income,
@@ -28,10 +29,11 @@ export async function monthlySummary(userId: string, from: string, to: string) {
 }
 
 export async function spendingByCategory(userId: string, from: string, to: string) {
-  const res = await pool.query<{
+  const res = await userQuery<{
     category_id: string; category_name: string; category_color: string | null;
     category_type: string; total: string; tx_count: string;
   }>(
+    userId,
     `SELECT
        c.id AS category_id, c.name AS category_name,
        c.color AS category_color, c.type AS category_type,
@@ -67,7 +69,8 @@ export async function cashFlow(userId: string, from: string, to: string, granula
   // Use generate_series so every period in the range is returned even if there
   // are no transactions — R-09 expects exactly 12 rows for a full-year monthly query.
   const interval = granularity === 'day' ? '1 day' : granularity === 'week' ? '1 week' : '1 month';
-  const res = await pool.query<{ period: string; income: string; expenses: string; net: string }>(
+  const res = await userQuery<{ period: string; income: string; expenses: string; net: string }>(
+    userId,
     `WITH periods AS (
        SELECT date_trunc($4, gs)::DATE AS period
        FROM generate_series(
@@ -98,11 +101,12 @@ export async function cashFlow(userId: string, from: string, to: string, granula
 }
 
 export async function budgetVsActual(userId: string, from: string, to: string) {
-  const res = await pool.query<{
+  const res = await userQuery<{
     budget_id: string; budget_name: string; category_id: string | null;
     category_name: string | null; category_color: string | null;
     budget: string; actual: string;
   }>(
+    userId,
     `SELECT
        b.id AS budget_id, b.name AS budget_name,
        b.category_id, c.name AS category_name, c.color AS category_color,

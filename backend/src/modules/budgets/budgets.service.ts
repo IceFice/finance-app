@@ -1,5 +1,5 @@
-import { pool } from '../../db/pool';
-import { NotFoundError, ForbiddenError } from '../../lib/errors';
+import { userQuery, withUserContext } from '../../db/context';
+import { NotFoundError } from '../../lib/errors';
 import type { CreateBudgetInput, UpdateBudgetInput } from './budgets.schema';
 
 interface BudgetRow {
@@ -22,7 +22,8 @@ function mapBudget(row: BudgetRow & { spent?: string; category_name?: string; ca
 }
 
 export async function getById(userId: string, budgetId: string) {
-  const res = await pool.query<BudgetRow>(
+  const res = await userQuery<BudgetRow>(
+    userId,
     `SELECT * FROM budgets WHERE id = $1 AND user_id = $2 AND is_active = true`,
     [budgetId, userId]
   );
@@ -31,7 +32,8 @@ export async function getById(userId: string, budgetId: string) {
 }
 
 export async function list(userId: string) {
-  const res = await pool.query<BudgetRow & { spent: string; category_name: string; category_color: string }>(
+  const res = await userQuery<BudgetRow & { spent: string; category_name: string; category_color: string }>(
+    userId,
     `SELECT b.*, c.name AS category_name, c.color AS category_color,
       COALESCE(SUM(ABS(t.amount_base)), 0)::NUMERIC(15,2)::TEXT AS spent
      FROM budgets b
@@ -65,7 +67,8 @@ export async function progress(userId: string) {
 }
 
 export async function create(userId: string, input: CreateBudgetInput) {
-  const res = await pool.query<BudgetRow>(
+  const res = await userQuery<BudgetRow>(
+    userId,
     `INSERT INTO budgets (user_id, category_id, name, amount, currency, period, start_date, end_date)
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
     [userId, input.categoryId ?? null, input.name, input.amount, input.currency, input.period, input.startDate, input.endDate ?? null]
@@ -74,34 +77,38 @@ export async function create(userId: string, input: CreateBudgetInput) {
 }
 
 export async function update(userId: string, budgetId: string, input: UpdateBudgetInput) {
-  const check = await pool.query<BudgetRow>(`SELECT * FROM budgets WHERE id = $1`, [budgetId]);
-  if (!check.rows[0]) throw new NotFoundError('Budget');
-  if (check.rows[0].user_id !== userId) throw new ForbiddenError();
+  return withUserContext(userId, async (db) => {
+    const check = await db.query<BudgetRow>(`SELECT * FROM budgets WHERE id = $1`, [budgetId]);
+    if (!check.rows[0]) throw new NotFoundError('Budget');
 
-  const fields: string[] = [];
-  const values: unknown[] = [];
-  let i = 1;
-  const map: Record<string, string> = {
-    name: 'name', categoryId: 'category_id', amount: 'amount',
-    currency: 'currency', period: 'period', startDate: 'start_date', endDate: 'end_date',
-  };
-  for (const [key, col] of Object.entries(map)) {
-    if ((input as Record<string, unknown>)[key] !== undefined) {
-      fields.push(`${col} = $${i++}`);
-      values.push((input as Record<string, unknown>)[key]);
+    const fields: string[] = [];
+    const values: unknown[] = [];
+    let i = 1;
+    const map: Record<string, string> = {
+      name: 'name', categoryId: 'category_id', amount: 'amount',
+      currency: 'currency', period: 'period', startDate: 'start_date', endDate: 'end_date',
+    };
+    for (const [key, col] of Object.entries(map)) {
+      if ((input as Record<string, unknown>)[key] !== undefined) {
+        fields.push(`${col} = $${i++}`);
+        values.push((input as Record<string, unknown>)[key]);
+      }
     }
-  }
-  if (fields.length === 0) return mapBudget(check.rows[0]);
-  values.push(budgetId);
-  const res = await pool.query<BudgetRow>(
-    `UPDATE budgets SET ${fields.join(', ')} WHERE id = $${i} RETURNING *`, values
-  );
-  return mapBudget(res.rows[0]);
+    if (fields.length === 0) return mapBudget(check.rows[0]);
+    values.push(budgetId);
+    const res = await db.query<BudgetRow>(
+      `UPDATE budgets SET ${fields.join(', ')} WHERE id = $${i} RETURNING *`, values
+    );
+    return mapBudget(res.rows[0]);
+  });
 }
 
 export async function remove(userId: string, budgetId: string) {
-  const check = await pool.query<BudgetRow>(`SELECT user_id FROM budgets WHERE id = $1`, [budgetId]);
-  if (!check.rows[0]) throw new NotFoundError('Budget');
-  if (check.rows[0].user_id !== userId) throw new ForbiddenError();
-  await pool.query(`UPDATE budgets SET is_active = false WHERE id = $1`, [budgetId]);
+  return withUserContext(userId, async (db) => {
+    const res = await db.query(
+      `UPDATE budgets SET is_active = false WHERE id = $1 AND is_active = true RETURNING id`,
+      [budgetId]
+    );
+    if (res.rowCount === 0) throw new NotFoundError('Budget');
+  });
 }

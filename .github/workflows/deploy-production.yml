@@ -114,6 +114,21 @@ jobs:
             echo "▶ Apply stack (postgres/redis stay up; backend+nginx recreate)"
             $COMPOSE up -d --remove-orphans
 
+            echo "▶ Wait for postgres to accept connections"
+            for i in $(seq 1 18); do
+              if $COMPOSE exec -T postgres pg_isready -U "$(grep -E '^POSTGRES_USER=' .env | cut -d= -f2)" >/dev/null 2>&1; then
+                echo "  postgres ready ✅ (attempt $i)"; break
+              fi
+              [ "$i" -eq 18 ] && { echo "❌ postgres not ready"; $COMPOSE logs --tail=30 postgres; exit 1; }
+              sleep 3
+            done
+
+            echo "▶ Run pending DB migrations (idempotent, RLS WITH CHECK etc.)"
+            bash deploy/run-migrations.sh
+
+            echo "▶ Restart backend so it picks up post-migration schema"
+            $COMPOSE restart backend
+
             echo "▶ Wait for backend health"
             healthy=0
             for i in $(seq 1 18); do
