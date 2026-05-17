@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/Card';
 import { SkeletonCard, Skeleton } from '@/components/ui/Skeleton';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Badge } from '@/components/ui/Badge';
-import { formatMoney, formatDate, cn } from '@/lib/utils';
+import { formatMoney, formatDate, cn, sumMoney } from '@/lib/utils';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
@@ -25,9 +25,10 @@ function SummaryCard({ label, value, color }: SummaryCardProps) {
   );
 }
 
-interface MonthTotals { income: string; expenses: string; net: string; }
-interface MonthData { totals?: MonthTotals; }
-interface CatEntry { categoryId: string; categoryName: string; categoryColor: string | null; total: string; pct: string; }
+// monthly-summary and spending-by-category return JSON ARRAYS (the service's
+// extra .totals/.grandTotal props are dropped by JSON.stringify on arrays).
+interface MonthEntry { month: string; income: string; expenses: string; net: string; }
+interface CatEntry { categoryId: string; categoryName: string; categoryColor: string | null; total: string; percentage: string; }
 
 export default function DashboardPage() {
   const { data: accounts, isLoading: accLoading } = useAccounts();
@@ -35,9 +36,14 @@ export default function DashboardPage() {
   const { data: budgets, isLoading: budLoading } = useBudgets();
   const { data: rawSummary, isLoading: sumLoading } = useReportsMonthlySummary({ from, to });
   const { data: rawCat } = useReportsSpendingByCategory({ from, to });
-  const summary = rawSummary as MonthData | undefined;
-  const pieData = (rawCat as { categories?: CatEntry[] } | undefined)?.categories?.slice(0, 6) ?? [];
-  const totalBalance = accounts?.reduce((s, a) => s + parseFloat(a.balance), 0).toFixed(2) ?? '0.00';
+  const months = (Array.isArray(rawSummary) ? rawSummary : []) as MonthEntry[];
+  const totalIncome = sumMoney(months.map((m) => m.income));
+  const totalExpenses = sumMoney(months.map((m) => m.expenses));
+  const totalNet = sumMoney([totalIncome, -Number(totalExpenses)]);
+  const pieData = ((Array.isArray(rawCat) ? rawCat : []) as CatEntry[])
+    .slice(0, 6)
+    .map((e) => ({ ...e, value: Number(e.total) || 0 }));
+  const totalBalance = sumMoney((accounts ?? []).map((a) => a.balance));
   const recentTx = txPages?.pages[0]?.data.slice(0, 8) ?? [];
   const topBudgets = budgets?.slice(0, 3) ?? [];
 
@@ -48,10 +54,10 @@ export default function DashboardPage() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">{[1,2,3,4].map(i => <SkeletonCard key={i} />)}</div>
       ) : (<div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <SummaryCard label="Общий баланс" value={formatMoney(totalBalance)} />
-        <SummaryCard label="Доходы" value={formatMoney(summary?.totals?.income ?? '0')} color="text-green-600 dark:text-green-400" />
-        <SummaryCard label="Расходы" value={formatMoney(summary?.totals?.expenses ?? '0')} color="text-red-600 dark:text-red-400" />
-        <SummaryCard label="Сбережения" value={formatMoney(summary?.totals?.net ?? '0')}
-          color={parseFloat(summary?.totals?.net ?? '0') >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400'} />
+        <SummaryCard label="Доходы" value={formatMoney(totalIncome)} color="text-green-600 dark:text-green-400" />
+        <SummaryCard label="Расходы" value={formatMoney(totalExpenses)} color="text-red-600 dark:text-red-400" />
+        <SummaryCard label="Сбережения" value={formatMoney(totalNet)}
+          color={Number(totalNet) >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400'} />
       </div>)}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -70,7 +76,7 @@ export default function DashboardPage() {
           <h2 className="font-semibold text-gray-900 dark:text-white mb-3">Категории</h2>
           {pieData.length > 0 && (
             <ResponsiveContainer width="100%" height={150}><PieChart>
-              <Pie data={pieData} dataKey="total" cx="50%" cy="50%" innerRadius={40} outerRadius={65} paddingAngle={2}>
+              <Pie data={pieData} dataKey="value" cx="50%" cy="50%" innerRadius={40} outerRadius={65} paddingAngle={2}>
                 {pieData.map((e, i) => <Cell key={e.categoryId} fill={e.categoryColor ?? COLORS[i % COLORS.length]} />)}
               </Pie>
               <Tooltip formatter={(v: unknown) => formatMoney(String(v))} />

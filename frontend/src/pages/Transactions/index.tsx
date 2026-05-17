@@ -292,7 +292,7 @@ export default function TransactionsPage() {
   const [detailTx, setDetailTx] = useState<Transaction | null>(null);
   const [showAdd, setShowAdd] = useState(false);
 
-  const loadMoreRef = useRef<HTMLDivElement>(null);
+  const observerRef = useRef<IntersectionObserver | null>(null);
 
   const { data: accountsData } = useAccounts();
   const { data: categoriesData } = useCategories();
@@ -320,22 +320,28 @@ export default function TransactionsPage() {
 
   const transactions: Transaction[] = data?.pages?.flatMap((p) => p.data) ?? [];
 
-  const handleObserver = useCallback(
-    (entries: IntersectionObserverEntry[]) => {
-      if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
-        void fetchNextPage();
-      }
+  // Callback ref: attaches the observer the moment the sentinel mounts and
+  // re-attaches with a fresh closure whenever pagination state changes —
+  // immune to the "sentinel renders after the effect ran" race.
+  const loadMoreRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      observerRef.current?.disconnect();
+      if (!node) return;
+      const obs = new IntersectionObserver(
+        (entries) => {
+          if (entries[0]?.isIntersecting && hasNextPage && !isFetchingNextPage) {
+            void fetchNextPage();
+          }
+        },
+        { threshold: 0.1 }
+      );
+      obs.observe(node);
+      observerRef.current = obs;
     },
     [fetchNextPage, hasNextPage, isFetchingNextPage]
   );
 
-  useEffect(() => {
-    const el = loadMoreRef.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(handleObserver, { threshold: 0.1 });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [handleObserver]);
+  useEffect(() => () => observerRef.current?.disconnect(), []);
 
   const handleDelete = async () => {
     if (!deleteId) return;

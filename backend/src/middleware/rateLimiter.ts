@@ -5,6 +5,9 @@ import { sendError } from '../lib/response';
 interface RateLimitOptions {
   windowSec: number;
   max: number;
+  // When Redis is unreachable: fail-open (allow) for availability-sensitive
+  // endpoints, or fail-closed (reject) for brute-force-sensitive ones (auth).
+  failClosed?: boolean;
   keyFn?: (req: Request) => string;
 }
 
@@ -48,8 +51,17 @@ export function rateLimiter(opts: RateLimitOptions) {
         );
       }
     } catch (err) {
-      // fail-open: Redis down → allow request but log the failure
       logRedisFailure(err);
+      // Brute-force-sensitive endpoints fail CLOSED in production: if we
+      // can't count attempts, we must not silently disable the limiter.
+      if (opts.failClosed && process.env['NODE_ENV'] === 'production') {
+        return sendError(
+          res, 503, 'SERVICE_UNAVAILABLE',
+          'Rate limiter temporarily unavailable, please retry shortly',
+          req.requestId ?? ''
+        );
+      }
+      // Otherwise fail-open (availability over strictness) — already logged.
     }
     next();
   };
@@ -58,6 +70,7 @@ export function rateLimiter(opts: RateLimitOptions) {
 export const authLimiter = rateLimiter({
   windowSec: 15 * 60,
   max: 5,
+  failClosed: true,
   // Key on email so each account gets its own 5-attempt budget.
   // This prevents cross-test contamination in E2E (all requests share 127.0.0.1)
   // while still protecting against brute-force on a specific account.
@@ -73,6 +86,7 @@ export const authLimiter = rateLimiter({
 export const refreshLimiter = rateLimiter({
   windowSec: 60,
   max: 20,
+  failClosed: true,
   keyFn: (req) => {
     const token = (req.cookies as { refreshToken?: string } | undefined)?.refreshToken ?? req.ip ?? '';
     // First 16 chars of the random hex token are sufficient for bucketing

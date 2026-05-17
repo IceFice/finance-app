@@ -79,10 +79,19 @@ export async function login(input: LoginInput) {
     if (user && valid) {
       // Password correct but account locked — do not reveal this distinction
     } else if (user) {
+      // Single atomic statement: the lock decision uses the POST-increment
+      // count (failed_login_attempts + 1) so the account locks exactly on the
+      // 5th consecutive failure. Postgres serializes the row UPDATE, so
+      // concurrent wrong logins increment correctly.
       await pool.query(
-        `UPDATE users SET failed_login_attempts = failed_login_attempts + 1,
-         locked_until = CASE WHEN failed_login_attempts >= 4 THEN NOW() + INTERVAL '15 minutes' ELSE locked_until END
-         WHERE id = $1`,
+        `UPDATE users
+            SET failed_login_attempts = failed_login_attempts + 1,
+                locked_until = CASE
+                  WHEN failed_login_attempts + 1 >= 5
+                  THEN NOW() + INTERVAL '15 minutes'
+                  ELSE locked_until
+                END
+          WHERE id = $1`,
         [user.id]
       );
     }

@@ -15,6 +15,11 @@ import { reportsRouter } from './modules/reports/reports.router';
 
 const app = express();
 
+// Behind exactly one reverse proxy (nginx). Without this, req.ip is the
+// proxy's address, collapsing every client into one rate-limit bucket and
+// mis-recording X-Forwarded-For.
+app.set('trust proxy', 1);
+
 app.use(helmet());
 app.use(cors({
   origin: config.FRONTEND_URL,
