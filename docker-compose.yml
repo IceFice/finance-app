@@ -6,11 +6,12 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: finance_user
-      POSTGRES_PASSWORD: finance_dev_password
-      POSTGRES_DB: finance_db
+      POSTGRES_USER: ${POSTGRES_USER:-finance_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-finance_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-finance_db}
     ports:
-      - "5432:5432"
+      # Bind to loopback only — never expose the dev DB on all interfaces.
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       # Run all migrations on first start
@@ -28,7 +29,7 @@ services:
     restart: unless-stopped
     command: redis-server --save 60 1 --loglevel warning
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -46,7 +47,7 @@ services:
     env_file:
       - ./backend/.env.development
     environment:
-      DATABASE_URL: postgresql://finance_user:finance_dev_password@postgres:5432/finance_db
+      DATABASE_URL: postgresql://${POSTGRES_USER:-finance_user}:${POSTGRES_PASSWORD:-finance_dev_password}@postgres:5432/${POSTGRES_DB:-finance_db}
       REDIS_URL: redis://redis:6379
       NODE_ENV: development
       PORT: 4000

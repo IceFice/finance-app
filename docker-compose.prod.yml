@@ -15,6 +15,20 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
+    # Tuned for a ~512 MB container on a 1 vCPU / 2 GB VPS so Postgres
+    # can't balloon and OOM-kill the rest of the stack.
+    command:
+      - postgres
+      - -c
+      - shared_buffers=96MB
+      - -c
+      - effective_cache_size=256MB
+      - -c
+      - work_mem=4MB
+      - -c
+      - maintenance_work_mem=32MB
+      - -c
+      - max_connections=30
     volumes:
       - postgres_data:/var/lib/postgresql/data
       # Runs every migration in order on FIRST init (empty data dir only).
@@ -28,13 +42,13 @@ services:
     deploy:
       resources:
         limits:
-          memory: 768m
+          memory: 512m
 
   # ── Redis ───────────────────────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
     restart: unless-stopped
-    command: redis-server --save 60 1 --appendonly yes --loglevel warning
+    command: redis-server --save 60 1 --appendonly yes --loglevel warning --maxmemory 128mb --maxmemory-policy allkeys-lru
     volumes:
       - redis_data:/data
     healthcheck:

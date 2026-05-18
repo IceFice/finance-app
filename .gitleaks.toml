@@ -48,9 +48,12 @@ tags = ["password-hash"]
 [allowlist]
 description = "Global allowlist for known false positives"
 
-# Allow the dummy bcrypt hash used for timing-safe login
+# Allow the dummy bcrypt hash used for timing-safe login,
+# and connection strings built purely from ${VAR} interpolation
+# (compose files) — these contain no real credentials.
 regexes = [
   '''\$2b\$12\$invalidhashfortimingprotection''',
+  '''(postgres(ql)?|redis)://\$\{[A-Za-z_][A-Za-z0-9_]*[^@]*@''',
 ]
 
 # Allow example / placeholder values in documentation
@@ -62,10 +65,6 @@ paths = [
   '''README.md''',
   '''.*\.test\.ts$''',
   '''.*\.spec\.ts$''',
-  # Compose files use ${VAR} interpolation only — no real credentials;
-  # the postgres:// string is assembled from env vars at runtime.
-  '''docker-compose\.yml''',
-  '''docker-compose\.prod\.yml''',
 ]
 
 # Allow placeholder strings

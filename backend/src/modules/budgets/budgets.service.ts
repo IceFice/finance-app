@@ -38,7 +38,10 @@ export async function list(userId: string) {
       COALESCE(SUM(ABS(t.amount_base)), 0)::NUMERIC(15,2)::TEXT AS spent
      FROM budgets b
      LEFT JOIN categories c ON c.id = b.category_id
-     LEFT JOIN transactions t ON t.category_id = b.category_id
+     LEFT JOIN transactions t ON
+       -- A budget with no category tracks ALL spending in the period;
+       -- a category budget tracks only that category.
+       (b.category_id IS NULL OR t.category_id = b.category_id)
        AND t.user_id = b.user_id
        AND t.type = 'debit'
        AND t.deleted_at IS NULL

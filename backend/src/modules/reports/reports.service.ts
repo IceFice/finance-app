@@ -114,7 +114,8 @@ export async function budgetVsActual(userId: string, from: string, to: string) {
        COALESCE(SUM(ABS(t.amount_base)), 0)::NUMERIC(15,2)::TEXT AS actual
      FROM budgets b
      LEFT JOIN categories c ON c.id = b.category_id
-     LEFT JOIN transactions t ON t.category_id = b.category_id
+     LEFT JOIN transactions t ON
+       (b.category_id IS NULL OR t.category_id = b.category_id)
        AND t.user_id = b.user_id AND t.type = 'debit'
        AND t.deleted_at IS NULL AND t.date BETWEEN $2 AND $3
      WHERE b.user_id = $1 AND b.is_active = true

@@ -34,6 +34,8 @@ api.interceptors.response.use(
   res => res,
   async err => {
     const originalRequest = err.config;
+    // Network errors / cancelled requests have no config — nothing to retry.
+    if (!originalRequest) return Promise.reject(err);
     // Never attempt a token refresh on auth endpoints — a 401 from /auth/login means
     // wrong credentials, not an expired token. Refreshing would replace the real error
     // with a generic "Необходима авторизация" message and confuse the UI.
@@ -42,7 +44,13 @@ api.interceptors.response.use(
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           subscribeToRefresh(
-            token => { originalRequest.headers.Authorization = `Bearer ${token}`; resolve(api(originalRequest)); },
+            token => {
+              // Mark resumed requests too: if they still 401 after the fresh
+              // token, they must reject instead of re-entering the refresh.
+              originalRequest._retry = true;
+              originalRequest.headers.Authorization = `Bearer ${token}`;
+              resolve(api(originalRequest));
+            },
             reject
           );
         });

@@ -1,5 +1,6 @@
-import { ReactNode, useEffect } from 'react';
+import { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
+import { useOverlay } from '@/lib/useOverlay';
 import { Button } from './Button';
 
 interface SlideOverProps {
@@ -11,11 +12,7 @@ interface SlideOverProps {
 }
 
 export function SlideOver({ open, onClose, title, children, className }: SlideOverProps) {
-  useEffect(() => {
-    if (open) document.body.style.overflow = 'hidden';
-    else document.body.style.overflow = '';
-    return () => { document.body.style.overflow = ''; };
-  }, [open]);
+  const dialogRef = useOverlay(open, onClose);
 
   return (
     <div className={cn('fixed inset-0 z-50', !open && 'pointer-events-none')}>
@@ -24,12 +21,14 @@ export function SlideOver({ open, onClose, title, children, className }: SlideOv
         onClick={onClose}
       />
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         role={open ? 'dialog' : undefined}
         aria-modal={open ? 'true' : undefined}
         aria-hidden={open ? undefined : 'true'}
         aria-label={title}
         className={cn(
-          'absolute right-0 top-0 h-full w-full max-w-md bg-white dark:bg-gray-900 shadow-xl transition-transform duration-300 flex flex-col',
+          'absolute right-0 top-0 h-full w-full max-w-md bg-white dark:bg-gray-900 shadow-xl transition-transform duration-300 flex flex-col focus:outline-none',
           open ? 'translate-x-0' : 'translate-x-full',
           className
         )}
