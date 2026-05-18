@@ -87,6 +87,10 @@ jobs:
       - name: Install all workspace dependencies
         run: npm ci --ignore-scripts
 
+      - name: Run frontend unit tests (Vitest)
+        working-directory: frontend
+        run: npm run test
+
       - name: Run unit tests with coverage
         working-directory: backend
         run: npm run test:coverage
