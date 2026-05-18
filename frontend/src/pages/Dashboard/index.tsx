@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useAccounts } from '@/hooks/useAccounts';
 import { useTransactions } from '@/hooks/useTransactions';
 import { useBudgets } from '@/hooks/useBudgets';
@@ -62,9 +63,24 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="p-5 lg:col-span-2">
-          <h2 className="font-semibold text-gray-900 dark:text-white mb-4">Счета</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-semibold text-gray-900 dark:text-white">Счета</h2>
+            <Link to="/accounts" className="text-sm text-blue-600 dark:text-blue-400 hover:underline">
+              Управлять
+            </Link>
+          </div>
           <div className="flex gap-3 overflow-x-auto pb-2">
-            {accLoading ? <Skeleton className="w-40 h-24 rounded-xl" /> : accounts?.map(acc => (
+            {accLoading ? (
+              <Skeleton className="w-40 h-24 rounded-xl" />
+            ) : (accounts?.length ?? 0) === 0 ? (
+              <Link
+                to="/accounts"
+                className="flex-shrink-0 w-44 h-24 p-4 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center text-sm text-gray-500 dark:text-gray-400 hover:border-blue-500 hover:text-blue-500 transition-colors"
+              >
+                <span className="text-2xl">＋</span>
+                Добавить счёт
+              </Link>
+            ) : accounts?.map(acc => (
               <div key={acc.id} className="flex-shrink-0 w-44 p-4 rounded-xl text-white" style={{ background: acc.color ?? '#3B82F6' }}>
                 <p className="text-xs opacity-80 truncate">{acc.name}</p>
                 <p className="text-lg font-bold mt-1">{formatMoney(acc.balance, acc.currency)}</p>

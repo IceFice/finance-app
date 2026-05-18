@@ -8,6 +8,7 @@ interface NavItem { to: string; label: string; icon: string; }
 
 const NAV_ITEMS: NavItem[] = [
   { to: '/dashboard',    label: 'Главная',    icon: '🏠' },
+  { to: '/accounts',     label: 'Счета',      icon: '🏦' },
   { to: '/transactions', label: 'Операции',   icon: '💳' },
   { to: '/budgets',      label: 'Бюджеты',    icon: '🎯' },
   { to: '/reports',      label: 'Отчёты',     icon: '📊' },

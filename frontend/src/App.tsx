@@ -13,6 +13,7 @@ const LoginPage        = lazy(() => import('@/pages/Login'));
 const RegisterPage     = lazy(() => import('@/pages/Register'));
 const DashboardPage    = lazy(() => import('@/pages/Dashboard'));
 const TransactionsPage = lazy(() => import('@/pages/Transactions'));
+const AccountsPage     = lazy(() => import('@/pages/Accounts'));
 const BudgetsPage      = lazy(() => import('@/pages/Budgets'));
 const ReportsPage      = lazy(() => import('@/pages/Reports'));
 
@@ -98,6 +99,9 @@ function AppRoutes() {
             <Route element={<ProtectedRoute />}>
               <Route path="/dashboard" element={
                 <ErrorBoundary><Suspense fallback={<PageFallback />}><DashboardPage /></Suspense></ErrorBoundary>
+              } />
+              <Route path="/accounts" element={
+                <ErrorBoundary><Suspense fallback={<PageFallback />}><AccountsPage /></Suspense></ErrorBoundary>
               } />
               <Route path="/transactions" element={
                 <ErrorBoundary><Suspense fallback={<PageFallback />}><TransactionsPage /></Suspense></ErrorBoundary>
