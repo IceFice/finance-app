@@ -54,7 +54,11 @@ export function useDeleteTransaction() {
         ctx.snapshot.forEach(([key, val]) => qc.setQueryData(key, val));
       }
     },
-    onSettled: () => qc.invalidateQueries({ queryKey: ['transactions'] }),
+    // The optimistic removal is authoritative once the server returns 200,
+    // so just mark the infinite query stale (lazy refetch on next mount/
+    // focus) instead of eagerly refetching every loaded page.
+    onSettled: () =>
+      qc.invalidateQueries({ queryKey: ['transactions'], refetchType: 'none' }),
   });
 }
 

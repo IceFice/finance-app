@@ -5,6 +5,19 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ФинансыПро</title>
+    <!-- Apply persisted theme BEFORE first paint to avoid a light→dark flash
+         (FOUC). Mirrors the zustand `persist` shape: { state: { theme } }. -->
+    <script>
+      (function () {
+        try {
+          var raw = localStorage.getItem('ui-store');
+          var parsed = raw ? JSON.parse(raw) : null;
+          if (parsed && parsed.state && parsed.state.theme === 'dark') {
+            document.documentElement.classList.add('dark');
+          }
+        } catch (e) { /* ignore — fall back to default light theme */ }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
