@@ -7,6 +7,7 @@ import {
 } from '../../hooks/useReports';
 import { Card } from '../../components/ui/Card';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { QueryError } from '../../components/ui/QueryError';
 import { formatMoney } from '../../lib/utils';
 import { format, subMonths, startOfMonth, endOfMonth, startOfYear } from 'date-fns';
 import {
@@ -90,7 +91,7 @@ function SummaryStatCard({
 }
 
 function OverviewTab({ from, to }: { from: string; to: string }) {
-  const { data, isLoading } = useReportsMonthlySummary({ from, to });
+  const { data, isLoading, isError, refetch } = useReportsMonthlySummary({ from, to });
 
   interface MonthlyEntry {
     month: string;
@@ -105,6 +106,10 @@ function OverviewTab({ from, to }: { from: string; to: string }) {
   const totalIncome = months.reduce((s: number, m: MonthlyEntry) => s + parseFloat(String(m.income ?? 0)), 0);
   const totalExpenses = months.reduce((s: number, m: MonthlyEntry) => s + parseFloat(String(m.expenses ?? 0)), 0);
   const netSavings = totalIncome - totalExpenses;
+
+  if (isError) {
+    return <QueryError message="Не удалось загрузить отчёт" onRetry={() => void refetch()} />;
+  }
 
   if (isLoading) {
     return (
@@ -173,7 +178,7 @@ function OverviewTab({ from, to }: { from: string; to: string }) {
 }
 
 function CategoryTab({ from, to }: { from: string; to: string }) {
-  const { data, isLoading } = useReportsSpendingByCategory({ from, to });
+  const { data, isLoading, isError, refetch } = useReportsSpendingByCategory({ from, to });
 
   interface CategoryEntry {
     category_name: string;
@@ -185,6 +190,10 @@ function CategoryTab({ from, to }: { from: string; to: string }) {
 
   const categories: CategoryEntry[] = (data as CategoryEntry[]) ?? [];
   const total = categories.reduce((s: number, c: CategoryEntry) => s + parseFloat(String(c.total ?? 0)), 0);
+
+  if (isError) {
+    return <QueryError message="Не удалось загрузить отчёт" onRetry={() => void refetch()} />;
+  }
 
   if (isLoading) {
     return (
@@ -292,7 +301,7 @@ function CategoryTab({ from, to }: { from: string; to: string }) {
 }
 
 function CashFlowTab({ from, to }: { from: string; to: string }) {
-  const { data, isLoading } = useReportsCashFlow({ from, to, granularity: 'month' });
+  const { data, isLoading, isError, refetch } = useReportsCashFlow({ from, to, granularity: 'month' });
 
   interface CashFlowEntry {
     period: string;
@@ -302,6 +311,10 @@ function CashFlowTab({ from, to }: { from: string; to: string }) {
   }
 
   const periods: CashFlowEntry[] = (data as CashFlowEntry[]) ?? [];
+
+  if (isError) {
+    return <QueryError message="Не удалось загрузить отчёт" onRetry={() => void refetch()} />;
+  }
 
   if (isLoading) {
     return <Skeleton className="h-80 rounded-xl" />;
@@ -375,7 +388,7 @@ function CashFlowTab({ from, to }: { from: string; to: string }) {
 }
 
 function BudgetAnalysisTab({ from, to }: { from: string; to: string }) {
-  const { data, isLoading } = useReportsBudgetVsActual({ from, to });
+  const { data, isLoading, isError, refetch } = useReportsBudgetVsActual({ from, to });
 
   interface BudgetEntry {
     budget_name: string;
@@ -385,6 +398,10 @@ function BudgetAnalysisTab({ from, to }: { from: string; to: string }) {
   }
 
   const budgets: BudgetEntry[] = (data as BudgetEntry[]) ?? [];
+
+  if (isError) {
+    return <QueryError message="Не удалось загрузить отчёт" onRetry={() => void refetch()} />;
+  }
 
   if (isLoading) {
     return <Skeleton className="h-80 rounded-xl" />;

@@ -7,6 +7,7 @@ import { Badge } from '../../components/ui/Badge';
 import { SkeletonCard } from '../../components/ui/Skeleton';
 import { Modal } from '../../components/ui/Modal';
 import { ProgressBar } from '../../components/ui/ProgressBar';
+import { QueryError } from '../../components/ui/QueryError';
 import { formatMoney } from '../../lib/utils';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -268,7 +269,7 @@ export default function BudgetsPage() {
   const [editBudget, setEditBudget] = useState<Budget | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const { data: budgetsData, isLoading, isError } = useBudgets();
+  const { data: budgetsData, isLoading, isError, refetch } = useBudgets();
   const { data: categoriesData } = useCategories();
 
   const createMutation = useCreateBudget();
@@ -342,12 +343,7 @@ export default function BudgetsPage() {
           ))}
         </div>
       ) : isError ? (
-        <Card className="py-16">
-          <div className="flex flex-col items-center text-gray-500 dark:text-gray-400">
-            <span className="text-4xl mb-3">⚠️</span>
-            <p className="font-medium">Ошибка загрузки бюджетов</p>
-          </div>
-        </Card>
+        <QueryError message="Не удалось загрузить бюджеты" onRetry={() => void refetch()} />
       ) : activeBudgets.length === 0 ? (
         <Card className="py-16">
           <div className="flex flex-col items-center text-gray-500 dark:text-gray-400">

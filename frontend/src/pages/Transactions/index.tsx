@@ -8,6 +8,7 @@ import { Badge } from '../../components/ui/Badge';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { Modal } from '../../components/ui/Modal';
 import { SlideOver } from '../../components/ui/SlideOver';
+import { QueryError } from '../../components/ui/QueryError';
 import { formatMoney, formatDate } from '../../lib/utils';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -307,6 +308,7 @@ export default function TransactionsPage() {
     isFetchingNextPage,
     isLoading,
     isError,
+    refetch,
   } = useTransactions({
     from: fromDate,
     to: toDate,
@@ -461,11 +463,11 @@ export default function TransactionsPage() {
             ))}
           </div>
         ) : isError ? (
-          <div className="flex flex-col items-center justify-center py-16 text-gray-500 dark:text-gray-400">
-            <span className="text-4xl mb-3">⚠️</span>
-            <p className="font-medium">Ошибка загрузки транзакций</p>
-            <p className="text-sm mt-1">Попробуйте обновить страницу</p>
-          </div>
+          <QueryError
+            bare
+            message="Не удалось загрузить транзакции"
+            onRetry={() => void refetch()}
+          />
         ) : transactions.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-gray-500 dark:text-gray-400">
             <span className="text-5xl mb-3">💳</span>

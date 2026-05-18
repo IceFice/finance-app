@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
-import { QueryClient, QueryClientProvider, MutationCache } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, MutationCache, QueryCache } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { Suspense, lazy, useRef } from 'react';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
@@ -47,6 +47,19 @@ function AppRoutes() {
     queryClientRef.current = new QueryClient({
       mutationCache: new MutationCache({
         onError: (error) => {
+          showError(extractApiError(error));
+        },
+      }),
+      // Surface query failures too — but only on the FIRST load (no cached
+      // data) and not for 401 (the axios interceptor refreshes/logs out).
+      // This stops Dashboard/Reports/Budgets from silently showing an
+      // empty screen when their fetch fails, without spamming a toast on
+      // every background-refetch hiccup.
+      queryCache: new QueryCache({
+        onError: (error, query) => {
+          const status = (error as { response?: { status?: number } })?.response?.status;
+          if (status === 401) return;
+          if (query.state.data !== undefined) return;
           showError(extractApiError(error));
         },
       }),
