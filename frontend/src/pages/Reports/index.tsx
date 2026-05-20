@@ -71,24 +71,48 @@ function getPresetDates(preset: PresetKey): { from: string; to: string } {
   };
 }
 
+// Tinted v3 stat card with icon chip + sub line. Sticks to the same shape
+// as Dashboard/Operations/Budgets stat cards so the four pages feel like
+// one product, not four.
 function SummaryStatCard({
   label,
   value,
   currency,
-  color,
+  valueClass,
+  tintClass,
+  accentHex,
+  sub,
+  icon,
 }: {
   label: string;
   value: string | number;
   currency?: string;
-  color?: string;
+  valueClass?: string;
+  tintClass?: string;
+  accentHex?: string;
+  sub?: string;
+  icon?: string;
 }) {
+  const displayValue = currency ? formatMoney(String(value), currency) : value;
   return (
-    <Card className="p-4">
-      <p className="text-sm text-gray-500 dark:text-gray-400">{label}</p>
-      <p className={`text-xl font-bold mt-1 ${color || 'text-gray-900 dark:text-gray-100'}`}>
-        {currency ? formatMoney(String(value), currency) : value}
+    <div className={`rounded-2xl p-4 min-h-[112px] flex flex-col gap-2 shadow-soft ${tintClass ?? 'bg-white dark:bg-[#181B26]'}`}>
+      <div className="flex items-center gap-2">
+        {accentHex && (
+          <span
+            className="w-7 h-7 rounded-lg grid place-items-center text-[14px]"
+            style={{ backgroundColor: `${accentHex}28`, color: accentHex }}
+            aria-hidden="true"
+          >
+            {icon ?? '•'}
+          </span>
+        )}
+        <span className="text-xs font-medium text-gray-600 dark:text-gray-400">{label}</span>
+      </div>
+      <p className={`text-[22px] font-semibold leading-tight tracking-tight tnum truncate ${valueClass || 'text-gray-900 dark:text-white'}`}>
+        {displayValue}
       </p>
-    </Card>
+      {sub && <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-auto">{sub}</p>}
+    </div>
   );
 }
 
@@ -134,9 +158,25 @@ function OverviewTab({ from, to }: { from: string; to: string }) {
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <SummaryStatCard label="Доходы" value={totalIncome.toFixed(2)} currency="RUB" color="text-green-600 dark:text-green-400" />
-        <SummaryStatCard label="Расходы" value={totalExpenses.toFixed(2)} currency="RUB" color="text-red-600 dark:text-red-400" />
-        <SummaryStatCard label="Чистые сбережения" value={netSavings.toFixed(2)} currency="RUB" color={netSavings >= 0 ? 'text-brand-600 dark:text-brand-400' : 'text-red-600 dark:text-red-400'} />
+        <SummaryStatCard
+          label="Доходы" value={totalIncome.toFixed(2)} currency="RUB"
+          tintClass="bg-[#E8F7EE] dark:bg-[#142421]"
+          accentHex="#22C55E" valueClass="text-income"
+          sub={`за ${months.length || 0} мес.`} icon="↓"
+        />
+        <SummaryStatCard
+          label="Расходы" value={totalExpenses.toFixed(2)} currency="RUB"
+          tintClass="bg-[#FDECEC] dark:bg-[#2A1A1F]"
+          accentHex="#EF4444" valueClass="text-expense"
+          sub={`за ${months.length || 0} мес.`} icon="↑"
+        />
+        <SummaryStatCard
+          label="Чистые сбережения" value={netSavings.toFixed(2)} currency="RUB"
+          tintClass="bg-[#EEEBFB] dark:bg-[#1B1B30]"
+          accentHex="#6366F1"
+          valueClass={netSavings >= 0 ? 'text-brand-600 dark:text-brand-400' : 'text-expense'}
+          sub={netSavings >= 0 ? 'положительные' : 'отрицательные'} icon="🐷"
+        />
       </div>
 
       {chartData.length === 0 ? (
@@ -492,64 +532,107 @@ export default function ReportsPage() {
     ? { from: customFrom, to: customTo }
     : getPresetDates(preset);
 
+  // Human-readable range like "1 мар 2026 — 31 мая 2026" for the right side
+  // of the date-range card.
+  const fmtRange = (iso: string) => {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso;
+    const M = ['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
+    return `${d.getDate()} ${M[d.getMonth()]} ${d.getFullYear()}`;
+  };
+  const tabIcons: Record<TabKey, string> = {
+    overview: '📈', category: '🍩', cashflow: '📊', budget: '🎯',
+  };
+
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Отчёты</h1>
-
-        {/* Date range selector */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden">
-            {PRESETS.map((p) => (
-              <button
-                key={p.key}
-                onClick={() => { setPreset(p.key); setUseCustom(false); }}
-                className={`px-3 py-1.5 text-sm font-medium transition-colors ${
-                  !useCustom && preset === p.key
-                    ? 'bg-brand-600 text-white'
-                    : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'
-                }`}
-              >
-                {p.label}
-              </button>
-            ))}
+    <div className="px-4 md:px-8 py-6 md:py-7 max-w-7xl mx-auto space-y-5">
+      {/* ── Header ── */}
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-[13px] text-gray-500 dark:text-gray-400 mb-1">
+            Аналитика по периодам и категориям
           </div>
+          <h1 className="m-0 text-2xl md:text-[28px] font-semibold tracking-tight">Отчёты</h1>
+        </div>
+      </div>
 
-          <div className="flex items-center gap-1">
+      {/* ── Date-range card ── */}
+      <Card className="p-3 md:p-4 shadow-soft">
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-[11px] font-medium uppercase tracking-[0.06em] text-gray-500 dark:text-gray-400">
+            Период
+          </span>
+          <div className="inline-flex items-center bg-white dark:bg-[#181B26] border border-gray-200 dark:border-[#262A3A] rounded-full p-1 gap-1">
+            {PRESETS.map((p) => {
+              const active = !useCustom && preset === p.key;
+              return (
+                <button
+                  key={p.key}
+                  type="button"
+                  onClick={() => { setPreset(p.key); setUseCustom(false); }}
+                  className={
+                    'px-3.5 h-8 rounded-full text-sm transition-colors ' +
+                    (active
+                      ? 'bg-brand-600 text-white font-medium'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white')
+                  }
+                >
+                  {p.label}
+                </button>
+              );
+            })}
+          </div>
+          <span className="text-sm text-gray-400">или</span>
+          <div className="flex items-center gap-2">
             <input
               type="date"
+              aria-label="С"
               value={customFrom}
               onChange={(e) => { setCustomFrom(e.target.value); setUseCustom(true); }}
-              className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="h-9 rounded-lg border border-gray-200 dark:border-[#262A3A] bg-white dark:bg-[#181B26] text-gray-900 dark:text-gray-100 px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
             <span className="text-gray-400">—</span>
             <input
               type="date"
+              aria-label="По"
               value={customTo}
               onChange={(e) => { setCustomTo(e.target.value); setUseCustom(true); }}
-              className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="h-9 rounded-lg border border-gray-200 dark:border-[#262A3A] bg-white dark:bg-[#181B26] text-gray-900 dark:text-gray-100 px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
           </div>
+          <div className="ml-auto text-sm text-gray-500 dark:text-gray-400 tnum">
+            {fmtRange(from)} — {fmtRange(to)}
+          </div>
         </div>
-      </div>
+      </Card>
 
-      {/* Tab Navigation */}
-      <div role="tablist" className="flex border-b border-gray-200 dark:border-gray-700">
-        {TABS.map((tab) => (
-          <button
-            key={tab.key}
-            role="tab"
-            aria-selected={activeTab === tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === tab.key
-                ? 'border-brand-600 text-brand-600 dark:text-brand-400'
-                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+      {/* ── Tab strip with accent underline ── */}
+      <div role="tablist" className="flex gap-1 border-b border-gray-200 dark:border-[#262A3A]">
+        {TABS.map((tab) => {
+          const active = activeTab === tab.key;
+          return (
+            <button
+              key={tab.key}
+              role="tab"
+              aria-selected={active}
+              onClick={() => setActiveTab(tab.key)}
+              className={`relative px-4 py-3 text-sm transition-colors inline-flex items-center gap-2 ${
+                active
+                  ? 'text-gray-900 dark:text-white font-semibold'
+                  : 'font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+              }`}
+            >
+              <span className="text-[15px]" aria-hidden="true">{tabIcons[tab.key]}</span>
+              {tab.label}
+              {active && (
+                <span
+                  aria-hidden="true"
+                  className="absolute left-3 right-3 -bottom-px h-[3px] rounded-full bg-brand-600"
+                />
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {/* Tab Content */}
