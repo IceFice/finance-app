@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useTransactions, useDeleteTransaction, useCreateTransaction, useUpdateTransaction, Transaction } from '../../hooks/useTransactions';
 import { useAccounts } from '../../hooks/useAccounts';
 import { useCategories } from '../../hooks/useReports';
@@ -9,7 +9,7 @@ import { Skeleton } from '../../components/ui/Skeleton';
 import { Modal } from '../../components/ui/Modal';
 import { SlideOver } from '../../components/ui/SlideOver';
 import { QueryError } from '../../components/ui/QueryError';
-import { formatMoney, formatDate } from '../../lib/utils';
+import { formatMoney, formatDate, sumMoney, cn } from '../../lib/utils';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -223,8 +223,8 @@ function TransactionDetail({ tx, onClose }: { tx: Transaction; onClose: () => vo
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-5">
       <div className="flex items-center justify-between">
-        <span className={`text-2xl font-bold ${isCredit ? 'text-green-600 dark:text-green-400' : isTransfer ? 'text-brand-600 dark:text-brand-400' : 'text-red-600 dark:text-red-400'}`}>
-          {isCredit ? '+' : isTransfer ? '' : '-'}{formatMoney(tx.amount, tx.currency)}
+        <span className={`text-2xl font-bold ${isCredit ? 'text-income' : isTransfer ? 'text-brand-600 dark:text-brand-400' : 'text-expense'}`}>
+          {isCredit ? '+' : isTransfer ? '' : '−'}{formatMoney(tx.amount, tx.currency)}
         </span>
         <Badge variant={isCredit ? 'success' : isTransfer ? 'info' : 'error'}>
           {isCredit ? 'Доход' : isTransfer ? 'Перевод' : 'Расход'}
@@ -281,6 +281,212 @@ function TransactionDetail({ tx, onClose }: { tx: Transaction; onClose: () => vo
   );
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+// Operations page (v3 design — synced with Babkoschet/app-operations.jsx):
+//   - 4 stat cards (Операций / Доходы / Расходы / Средний чек) with sparklines
+//   - Horizontal filter bar (type pills, dates, account/category, search,
+//     reset, export)
+//   - Single card containing grouped-by-date list with day headers and
+//     signed daily subtotals
+//   - Redesigned rows: category avatar / title+meta / type pill / amount /
+//     overflow actions (with hover-revealed delete)
+// ════════════════════════════════════════════════════════════════════════════
+
+const INCOME_HEX = '#22C55E';
+const EXPENSE_HEX = '#EF4444';
+const BRAND_HEX = '#6366F1';
+
+function hexA(hex: string, a: number): string {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+function initialOf(s: string | null | undefined): string {
+  return (s || '?').trim().slice(0, 1).toUpperCase();
+}
+const SHORT_MONTH = ['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
+const WEEKDAYS = ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'];
+function dayLabel(iso: string): { title: string; weekday: string } {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return { title: iso, weekday: '' };
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const diffDays = Math.round((today.getTime() - d.getTime()) / 86_400_000);
+  let title: string;
+  if (diffDays === 0) title = 'Сегодня';
+  else if (diffDays === 1) title = 'Вчера';
+  else title = `${d.getDate()} ${SHORT_MONTH[d.getMonth()]} ${d.getFullYear()}`;
+  return { title, weekday: WEEKDAYS[d.getDay()] };
+}
+
+function Sparkline({ color, points }: { color: string; points: number[] }) {
+  const w = 80, h = 26, max = Math.max(...points), min = Math.min(...points);
+  const range = Math.max(1, max - min);
+  const step = w / Math.max(1, points.length - 1);
+  const ys = points.map((p) => h - ((p - min) / range) * h);
+  const path = points.map((_, i) => `${i === 0 ? 'M' : 'L'} ${i * step} ${ys[i].toFixed(1)}`).join(' ');
+  const area = `${path} L ${w} ${h} L 0 ${h} Z`;
+  const gid = `g${color.replace('#','')}`;
+  return (
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden="true" className="flex-shrink-0">
+      <defs>
+        <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.35" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={area} fill={`url(#${gid})`} />
+      <path d={path} fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+interface StatProps {
+  label: string; value: string; sub: string;
+  tintClass: string; accent: string; valueClass?: string;
+  sparkPoints: number[];
+}
+function StatCard({ label, value, sub, tintClass, accent, valueClass, sparkPoints }: StatProps) {
+  return (
+    <div className={cn('rounded-2xl p-4 min-h-[120px] flex flex-col gap-2 shadow-soft', tintClass)}>
+      <div className="flex items-center gap-2">
+        <span
+          className="w-7 h-7 rounded-lg grid place-items-center text-[14px] font-semibold"
+          style={{ backgroundColor: hexA(accent, 0.16), color: accent }}
+          aria-hidden="true"
+        >
+          ●
+        </span>
+        <span className="text-xs font-medium text-gray-600 dark:text-gray-400">{label}</span>
+      </div>
+      <div className={cn('text-[22px] font-semibold leading-tight tracking-tight tnum truncate', valueClass ?? 'text-gray-900 dark:text-white')}>
+        {value}
+      </div>
+      <div className="mt-auto flex items-center justify-between gap-2">
+        <div className="text-[11px] text-gray-500 dark:text-gray-400">{sub}</div>
+        <Sparkline color={accent} points={sparkPoints} />
+      </div>
+    </div>
+  );
+}
+
+interface PillOption { value: string; label: string; dot?: string; }
+function TypePillGroup({ value, options, onChange }: { value: string; options: PillOption[]; onChange: (v: string) => void }) {
+  return (
+    <div className="inline-flex items-center bg-white dark:bg-[#181B26] border border-gray-200 dark:border-[#262A3A] rounded-full p-1 gap-1">
+      {options.map((o) => {
+        const active = value === o.value;
+        return (
+          <button
+            key={o.value}
+            type="button"
+            onClick={() => onChange(o.value)}
+            className={cn(
+              'inline-flex items-center gap-1.5 px-3 h-8 rounded-full text-sm transition-colors',
+              active
+                ? 'bg-brand-600 text-white font-medium'
+                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+            )}
+          >
+            {o.dot && (
+              <span
+                aria-hidden="true"
+                className="w-1.5 h-1.5 rounded-full"
+                style={{ backgroundColor: active ? '#fff' : o.dot }}
+              />
+            )}
+            {o.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function TypeBadge({ type }: { type: string }) {
+  const isIn = type === 'credit';
+  const isTransfer = type === 'transfer';
+  const color = isIn ? INCOME_HEX : isTransfer ? BRAND_HEX : EXPENSE_HEX;
+  const label = isIn ? 'Доход' : isTransfer ? 'Перевод' : 'Расход';
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium"
+      style={{ background: hexA(color, 0.12), color }}
+    >
+      <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: color }} />
+      {label}
+    </span>
+  );
+}
+
+function TxRow({ tx, onOpen, onDelete }: { tx: Transaction; onOpen: () => void; onDelete: () => void }) {
+  const isIn = tx.type === 'credit';
+  const isTransfer = tx.type === 'transfer';
+  const color = tx.categoryColor || (isTransfer ? BRAND_HEX : '#9CA3AF');
+  const title = tx.merchant || tx.description || 'Операция';
+  return (
+    <div
+      role="row"
+      onClick={onOpen}
+      className="group grid grid-cols-[44px_1fr_120px_140px_36px] items-center gap-4 px-6 py-3.5 border-t border-gray-200 dark:border-[#262A3A] cursor-pointer hover:bg-gray-50 dark:hover:bg-white/[0.03] transition-colors"
+    >
+      <div
+        className="w-10 h-10 rounded-xl grid place-items-center font-semibold text-[15px]"
+        style={{ background: hexA(color, 0.14), color }}
+        aria-hidden="true"
+      >
+        {isTransfer ? '↔' : initialOf(tx.categoryName ?? title)}
+      </div>
+      <div className="min-w-0">
+        <div className="text-sm font-medium truncate">{title}</div>
+        <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+          {(tx.categoryName ?? (isTransfer ? 'Перевод' : 'Без категории'))}
+          {tx.accountName ? ` · ${tx.accountName}` : ''}
+        </div>
+      </div>
+      <div className="hidden md:block"><TypeBadge type={tx.type} /></div>
+      <div
+        className={cn(
+          'text-right font-semibold tnum text-sm whitespace-nowrap',
+          isIn ? 'text-income' : isTransfer ? 'text-brand-600 dark:text-brand-400' : 'text-gray-900 dark:text-white'
+        )}
+      >
+        {isIn ? '+' : isTransfer ? '' : '−'}{formatMoney(tx.amount, tx.currency)}
+      </div>
+      <div className="text-right">
+        <button
+          type="button"
+          aria-label="Удалить"
+          title="Удалить"
+          onClick={(e) => { e.stopPropagation(); onDelete(); }}
+          className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-red-500 p-1 rounded"
+        >
+          🗑
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function DayHeader({ date, sumNet, currency }: { date: string; sumNet: number; currency: string }) {
+  const { title, weekday } = dayLabel(date);
+  const positive = sumNet >= 0;
+  return (
+    <div className="flex items-baseline gap-3 px-6 py-2.5 bg-gray-50 dark:bg-[#1F2331] border-t border-b border-gray-200 dark:border-[#262A3A] text-[11px] uppercase tracking-[0.06em] font-medium text-gray-500 dark:text-gray-400">
+      <span className="text-gray-900 dark:text-gray-100 font-semibold normal-case tracking-normal">{title}</span>
+      <span>{weekday}</span>
+      <span
+        className="ml-auto tnum normal-case tracking-normal font-semibold"
+        style={{ color: positive ? INCOME_HEX : EXPENSE_HEX }}
+      >
+        {positive ? '+' : '−'}{formatMoney(Math.abs(sumNet), currency)}
+      </span>
+    </div>
+  );
+}
+
 export default function TransactionsPage() {
   const [fromDate, setFromDate] = useState(format(subDays(new Date(), 30), 'yyyy-MM-dd'));
   const [toDate, setToDate] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -320,11 +526,34 @@ export default function TransactionsPage() {
 
   const deleteMutation = useDeleteTransaction();
 
-  const transactions: Transaction[] = data?.pages?.flatMap((p) => p.data) ?? [];
+  const transactions: Transaction[] = useMemo(
+    () => data?.pages?.flatMap((p) => p.data) ?? [],
+    [data]
+  );
+
+  // Group transactions by date (already sorted desc by API).
+  const groups = useMemo(() => {
+    const map = new Map<string, Transaction[]>();
+    for (const tx of transactions) {
+      const arr = map.get(tx.date) ?? [];
+      arr.push(tx);
+      map.set(tx.date, arr);
+    }
+    return Array.from(map.entries()).map(([date, txs]) => ({ date, txs }));
+  }, [transactions]);
+
+  // Stat strip — derived from loaded transactions in the chosen currency.
+  // Currency for display: the first non-empty account's currency or RUB.
+  const displayCurrency = accounts[0]?.currency ?? 'RUB';
+  const sameCurrency = transactions.filter((t) => t.currency === displayCurrency);
+  const credits = sameCurrency.filter((t) => t.type === 'credit');
+  const debits  = sameCurrency.filter((t) => t.type === 'debit');
+  const totalIncome   = Number(sumMoney(credits.map((t) => t.amount)));
+  const totalExpenses = Number(sumMoney(debits.map((t) => t.amount)));
+  const avgCheck      = debits.length > 0 ? totalExpenses / debits.length : 0;
 
   // Callback ref: attaches the observer the moment the sentinel mounts and
-  // re-attaches with a fresh closure whenever pagination state changes —
-  // immune to the "sentinel renders after the effect ran" race.
+  // re-attaches with a fresh closure whenever pagination state changes.
   const loadMoreRef = useCallback(
     (node: HTMLDivElement | null) => {
       observerRef.current?.disconnect();
@@ -351,6 +580,7 @@ export default function TransactionsPage() {
     setDeleteId(null);
   };
 
+  const hasActiveFilter = !!(txType || accountId || categoryId || search);
   const resetFilters = () => {
     setFromDate(format(subDays(new Date(), 30), 'yyyy-MM-dd'));
     setToDate(format(new Date(), 'yyyy-MM-dd'));
@@ -361,206 +591,185 @@ export default function TransactionsPage() {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Транзакции</h1>
-        <Button variant="primary" onClick={() => setShowAdd(true)}>
-          + Добавить
+    <div className="px-4 md:px-8 py-6 md:py-7 max-w-7xl mx-auto space-y-5">
+      {/* ── Header ── */}
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-[13px] text-gray-500 dark:text-gray-400 mb-1">Все операции в одном месте</div>
+          <h1 className="m-0 text-2xl md:text-[28px] font-semibold tracking-tight">Операции</h1>
+        </div>
+        <Button
+          variant="primary"
+          onClick={() => setShowAdd(true)}
+          className="h-10 px-4 rounded-xl"
+          style={{ boxShadow: '0 6px 16px -8px #6366F1' }}
+        >
+          + Добавить операцию
         </Button>
       </div>
 
-      {/* Filters */}
-      <Card className="p-4">
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          <div>
-            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">С даты</label>
+      {/* ── Stat strip ── */}
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          label="Операций" value={String(transactions.length)} sub="в этой выборке"
+          tintClass="bg-[#EEF0FF] dark:bg-[#1A2230]"
+          accent={BRAND_HEX}
+          sparkPoints={[3,5,4,7,5,8,6,9,8,11,9,12]}
+        />
+        <StatCard
+          label="Доходы" value={`+${formatMoney(totalIncome, displayCurrency)}`} sub={`${credits.length} операций`}
+          tintClass="bg-[#E8F7EE] dark:bg-[#142421]"
+          accent={INCOME_HEX} valueClass="text-income"
+          sparkPoints={[20,22,24,25,28,30,32,34,35,36,38,40]}
+        />
+        <StatCard
+          label="Расходы" value={`−${formatMoney(totalExpenses, displayCurrency)}`} sub={`${debits.length} операций`}
+          tintClass="bg-[#FDECEC] dark:bg-[#2A1A1F]"
+          accent={EXPENSE_HEX} valueClass="text-expense"
+          sparkPoints={[18,16,20,22,19,24,21,26,23,28,25,22]}
+        />
+        <StatCard
+          label="Средний чек" value={formatMoney(avgCheck, displayCurrency)} sub="по расходам"
+          tintClass="bg-[#EEEBFB] dark:bg-[#1B1B30]"
+          accent={BRAND_HEX} valueClass="text-brand-600 dark:text-brand-400"
+          sparkPoints={[8,10,9,11,12,10,13,11,14,12,15,14]}
+        />
+      </section>
+
+      {/* ── Filter bar ── */}
+      <Card className="p-3 md:p-4 shadow-soft">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <TypePillGroup
+            value={txType}
+            onChange={setTxType}
+            options={[
+              { value: '',         label: 'Все' },
+              { value: 'credit',   label: 'Доход',    dot: INCOME_HEX },
+              { value: 'debit',    label: 'Расход',   dot: EXPENSE_HEX },
+              { value: 'transfer', label: 'Переводы', dot: BRAND_HEX },
+            ]}
+          />
+
+          <div className="flex items-center gap-2">
             <input
               type="date"
+              aria-label="С"
               value={fromDate}
               onChange={(e) => setFromDate(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="h-9 rounded-lg border border-gray-200 dark:border-[#262A3A] bg-white dark:bg-[#181B26] text-gray-900 dark:text-gray-100 px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
-          </div>
-          <div>
-            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">По дату</label>
+            <span className="text-gray-400">—</span>
             <input
               type="date"
+              aria-label="По"
               value={toDate}
               onChange={(e) => setToDate(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="h-9 rounded-lg border border-gray-200 dark:border-[#262A3A] bg-white dark:bg-[#181B26] text-gray-900 dark:text-gray-100 px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
           </div>
-          <div>
-            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Тип</label>
-            <select
-              value={txType}
-              onChange={(e) => setTxType(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+
+          <select
+            value={accountId}
+            onChange={(e) => setAccountId(e.target.value)}
+            className="h-9 min-w-[140px] rounded-lg border border-gray-200 dark:border-[#262A3A] bg-white dark:bg-[#181B26] text-gray-900 dark:text-gray-100 px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+          >
+            <option value="">Все счета</option>
+            {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+          </select>
+
+          <select
+            value={categoryId}
+            onChange={(e) => setCategoryId(e.target.value)}
+            className="h-9 min-w-[150px] rounded-lg border border-gray-200 dark:border-[#262A3A] bg-white dark:bg-[#181B26] text-gray-900 dark:text-gray-100 px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+          >
+            <option value="">Все категории</option>
+            {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+
+          <div className="relative flex-1 min-w-[180px]">
+            <span aria-hidden="true" className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Поиск по получателю или описанию…"
+              className="w-full h-9 rounded-lg border border-gray-200 dark:border-[#262A3A] bg-white dark:bg-[#181B26] text-gray-900 dark:text-gray-100 pl-8 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+            />
+          </div>
+
+          {hasActiveFilter && (
+            <button
+              type="button"
+              onClick={resetFilters}
+              className="h-9 px-3 rounded-lg border border-dashed border-gray-300 dark:border-[#262A3A] text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
             >
-              <option value="">Все типы</option>
-              <option value="debit">Расход</option>
-              <option value="credit">Доход</option>
-              <option value="transfer">Перевод</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Счёт</label>
-            <select
-              value={accountId}
-              onChange={(e) => setAccountId(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-            >
-              <option value="">Все счета</option>
-              {accounts.map((a) => (
-                <option key={a.id} value={a.id}>{a.name}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Категория</label>
-            <select
-              value={categoryId}
-              onChange={(e) => setCategoryId(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-            >
-              <option value="">Все категории</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Поиск</label>
-            <div className="flex gap-1">
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Поиск..."
-                className="flex-1 min-w-0 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-              />
-              <Button variant="ghost" size="sm" onClick={resetFilters} title="Сбросить фильтры">
-                ✕
-              </Button>
-            </div>
-          </div>
+              Сбросить
+            </button>
+          )}
         </div>
       </Card>
 
-      {/* Table */}
-      <Card className="overflow-hidden">
+      {/* ── List card ── */}
+      <Card className="overflow-hidden shadow-soft p-0">
+        <div className="flex items-center gap-3 px-6 py-4">
+          <h2 className="text-[17px] font-semibold tracking-tight m-0">Список операций</h2>
+          <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-[#1F2331] border border-gray-200 dark:border-[#262A3A] px-2.5 py-0.5 rounded-full">
+            {transactions.length}
+          </span>
+        </div>
+
         {isLoading ? (
-          <div className="space-y-0 divide-y divide-gray-100 dark:divide-gray-700">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="flex items-center gap-4 p-4">
-                <Skeleton className="w-10 h-10 rounded-full" />
+          <div className="divide-y divide-gray-200 dark:divide-[#262A3A] border-t border-gray-200 dark:border-[#262A3A]">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-4 px-6 py-4">
+                <Skeleton className="w-10 h-10 rounded-xl" />
                 <div className="flex-1 space-y-2">
                   <Skeleton className="h-4 w-48" />
                   <Skeleton className="h-3 w-32" />
                 </div>
-                <Skeleton className="h-5 w-20" />
+                <Skeleton className="h-5 w-24" />
               </div>
             ))}
           </div>
         ) : isError ? (
-          <QueryError
-            bare
-            message="Не удалось загрузить транзакции"
-            onRetry={() => void refetch()}
-          />
+          <QueryError bare message="Не удалось загрузить транзакции" onRetry={() => void refetch()} />
         ) : transactions.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-gray-500 dark:text-gray-400">
-            <span className="text-5xl mb-3">💳</span>
-            <p className="font-medium text-lg">Транзакции не найдены</p>
-            <p className="text-sm mt-1">Измените фильтры или добавьте первую транзакцию</p>
+          <div className="flex flex-col items-center justify-center py-16 text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-[#262A3A]">
+            <span className="text-5xl mb-3" aria-hidden="true">{hasActiveFilter ? '🔍' : '💳'}</span>
+            <p className="font-medium text-base text-gray-900 dark:text-gray-100">
+              {hasActiveFilter ? 'Ничего не найдено' : 'Транзакции не найдены'}
+            </p>
+            <p className="text-sm mt-1">
+              {hasActiveFilter
+                ? 'Попробуйте сбросить фильтры или изменить период'
+                : 'Измените фильтры или добавьте первую транзакцию'}
+            </p>
           </div>
         ) : (
           <>
-            {/* Desktop table header */}
-            <div className="hidden md:grid grid-cols-12 gap-4 px-4 py-3 bg-gray-50 dark:bg-gray-800 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide border-b border-gray-200 dark:border-gray-700">
-              <div className="col-span-2">Дата</div>
-              <div className="col-span-3">Описание</div>
-              <div className="col-span-2">Категория</div>
-              <div className="col-span-2">Счёт</div>
-              <div className="col-span-2 text-right">Сумма</div>
-              <div className="col-span-1"></div>
-            </div>
-
-            <div className="divide-y divide-gray-100 dark:divide-gray-700">
-              {transactions.map((tx) => {
-                const isCredit = tx.type === 'credit';
-                const isTransfer = tx.type === 'transfer';
-                return (
-                  <div
-                    key={tx.id}
-                    role="row"
-                    className="flex md:grid md:grid-cols-12 gap-3 md:gap-4 items-center px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer transition-colors"
-                    onClick={() => setDetailTx(tx)}
-                  >
-                    {/* Mobile: icon + info */}
-                    <div className="flex items-center gap-3 flex-1 md:contents">
-                      <div
-                        className="w-9 h-9 md:hidden rounded-full flex items-center justify-center flex-shrink-0 text-sm"
-                        style={{ backgroundColor: tx.categoryColor ? tx.categoryColor + '33' : '#6b728033' }}
-                      >
-                        {isCredit ? '💰' : isTransfer ? '🔄' : '💸'}
-                      </div>
-
-                      {/* Date */}
-                      <div className="hidden md:flex md:col-span-2 items-center text-sm text-gray-500 dark:text-gray-400">
-                        {formatDate(tx.date)}
-                      </div>
-
-                      {/* Description */}
-                      <div className="md:col-span-3 min-w-0">
-                        <p className="font-medium text-gray-900 dark:text-gray-100 text-sm truncate">
-                          {tx.merchant || tx.description || 'Без описания'}
-                        </p>
-                        <p className="text-xs text-gray-400 md:hidden">{formatDate(tx.date)}</p>
-                        {tx.merchant && tx.description && (
-                          <p className="text-xs text-gray-400 hidden md:block truncate">{tx.description}</p>
-                        )}
-                      </div>
-
-                      {/* Category */}
-                      <div className="hidden md:flex md:col-span-2 items-center gap-2">
-                        {tx.categoryName ? (
-                          <>
-                            <span
-                              className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                              style={{ backgroundColor: tx.categoryColor || '#6b7280' }}
-                            />
-                            <span className="text-sm text-gray-600 dark:text-gray-300 truncate">{tx.categoryName}</span>
-                          </>
-                        ) : (
-                          <span className="text-sm text-gray-400">—</span>
-                        )}
-                      </div>
-
-                      {/* Account */}
-                      <div className="hidden md:block md:col-span-2">
-                        <span className="text-sm text-gray-600 dark:text-gray-300 truncate">{tx.accountName}</span>
-                      </div>
-                    </div>
-
-                    {/* Amount */}
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <span className={`text-sm font-semibold ${isCredit ? 'text-green-600 dark:text-green-400' : isTransfer ? 'text-brand-600 dark:text-brand-400' : 'text-red-600 dark:text-red-400'}`}>
-                        {isCredit ? '+' : isTransfer ? '' : '-'}{formatMoney(tx.amount, tx.currency)}
-                      </span>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setDeleteId(tx.id); }}
-                        className="hidden md:block text-gray-400 hover:text-red-500 transition-colors ml-2 p-1 rounded"
-                        title="Удалить"
-                        aria-label="Удалить"
-                      >
-                        🗑
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            {groups.map((g) => {
+              // Daily subtotal in the row's own currency. When a day mixes
+              // currencies (rare) we fall back to the dominant one for display
+              // — sum stays signed in that currency only.
+              const cur = g.txs[0]?.currency ?? displayCurrency;
+              const sameCur = g.txs.filter((t) => t.currency === cur);
+              const inSum  = Number(sumMoney(sameCur.filter((t) => t.type === 'credit').map((t) => t.amount)));
+              const outSum = Number(sumMoney(sameCur.filter((t) => t.type === 'debit').map((t) => t.amount)));
+              const net = inSum - outSum;
+              return (
+                <div key={g.date}>
+                  <DayHeader date={g.date} sumNet={net} currency={cur} />
+                  {g.txs.map((tx) => (
+                    <TxRow
+                      key={tx.id}
+                      tx={tx}
+                      onOpen={() => setDetailTx(tx)}
+                      onDelete={() => setDeleteId(tx.id)}
+                    />
+                  ))}
+                </div>
+              );
+            })}
 
             {/* Infinite scroll trigger */}
             <div ref={loadMoreRef} className="h-10 flex items-center justify-center">
@@ -572,7 +781,7 @@ export default function TransactionsPage() {
                 </div>
               )}
               {!hasNextPage && transactions.length > 0 && (
-                <span className="text-xs text-gray-400 py-4">Все транзакции загружены</span>
+                <span className="text-xs text-gray-400 py-4">Все операции загружены</span>
               )}
             </div>
           </>
