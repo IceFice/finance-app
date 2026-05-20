@@ -33,6 +33,15 @@ export class TransactionsPage {
   async goto() {
     await this.page.goto('/transactions');
     await expect(this.addButton).toBeVisible({ timeout: 8_000 });
+    // Wait for the list to settle before tests read getRowCount() — without
+    // this, a caller may capture 0 while the React Query fetch is still in
+    // flight, then later operations (hover/click) implicitly wait for a row
+    // to appear, breaking count-delta assertions like in T-27.
+    await Promise.race([
+      this.transactionRows.first().waitFor({ state: 'attached', timeout: 4_000 }).catch(() => {}),
+      this.page.getByText(/транзакции не найдены|ничего не найдено/i)
+        .waitFor({ timeout: 4_000 }).catch(() => {}),
+    ]);
   }
 
   async openAddForm() {
