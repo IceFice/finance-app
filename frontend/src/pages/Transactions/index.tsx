@@ -470,19 +470,19 @@ function TxRow({ tx, onOpen, onDelete }: { tx: Transaction; onOpen: () => void; 
   );
 }
 
-function DayHeader({ date, sumNet, currency }: { date: string; sumNet: number; currency: string }) {
+function DayHeader({ date, sumNet, currency, showSubtotal }: { date: string; sumNet: number; currency: string; showSubtotal: boolean }) {
   const { title, weekday } = dayLabel(date);
   const positive = sumNet >= 0;
   return (
     <div className="flex items-baseline gap-3 px-6 py-2.5 bg-gray-50 dark:bg-[#1F2331] border-t border-b border-gray-200 dark:border-[#262A3A] text-[11px] uppercase tracking-[0.06em] font-medium text-gray-500 dark:text-gray-400">
       <span className="text-gray-900 dark:text-gray-100 font-semibold normal-case tracking-normal">{title}</span>
       <span>{weekday}</span>
-      <span
+      {showSubtotal && <span
         className="ml-auto tnum normal-case tracking-normal font-semibold"
         style={{ color: positive ? INCOME_HEX : EXPENSE_HEX }}
       >
         {positive ? '+' : '−'}{formatMoney(Math.abs(sumNet), currency)}
-      </span>
+      </span>}
     </div>
   );
 }
@@ -758,7 +758,11 @@ export default function TransactionsPage() {
               const net = inSum - outSum;
               return (
                 <div key={g.date}>
-                  <DayHeader date={g.date} sumNet={net} currency={cur} />
+                  {/* When a day has a single transaction the subtotal would
+                      repeat the row's amount verbatim — drop it. Avoids
+                      duplicate text leaves that break strict-mode locator
+                      assertions (Playwright getByText). */}
+                  <DayHeader date={g.date} sumNet={net} currency={cur} showSubtotal={g.txs.length > 1} />
                   {g.txs.map((tx) => (
                     <TxRow
                       key={tx.id}
