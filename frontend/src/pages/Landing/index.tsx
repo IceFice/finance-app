@@ -55,7 +55,7 @@ function IconArrow() {
 const FEATURES = [
   {
     icon: <IconChart />,
-    color: 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400',
+    color: 'bg-brand-100 text-brand-600 dark:bg-brand-900/40 dark:text-brand-400',
     title: 'Аналитика и отчёты',
     desc: 'Наглядные графики доходов, расходов и денежного потока. Разбивка по категориям одним взглядом.',
   },
@@ -116,8 +116,8 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           {/* Логотип */}
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-sm select-none">Ф</div>
-            <span className="font-semibold text-lg tracking-tight">ФинансыПро</span>
+            <div className="w-8 h-8 rounded-lg bg-brand-600 flex items-center justify-center text-white font-bold text-sm select-none">Ф</div>
+            <span className="font-semibold text-lg tracking-tight">Бабкосчёт</span>
           </div>
 
           <nav className="hidden sm:flex items-center gap-6 text-sm text-gray-600 dark:text-gray-400">
@@ -128,13 +128,13 @@ export default function LandingPage() {
           <div className="flex items-center gap-3">
             <Link
               to="/login"
-              className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors px-3 py-1.5"
+              className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-brand-600 dark:hover:text-brand-400 transition-colors px-3 py-1.5"
             >
               Войти
             </Link>
             <Link
               to="/register"
-              className="inline-flex items-center gap-1.5 text-sm font-semibold bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white px-4 py-2 rounded-lg transition-colors"
+              className="inline-flex items-center gap-1.5 text-sm font-semibold bg-brand-600 hover:bg-brand-700 active:bg-brand-800 text-white px-4 py-2 rounded-lg transition-colors"
             >
               Начать бесплатно
             </Link>
@@ -146,18 +146,18 @@ export default function LandingPage() {
       <section className="relative overflow-hidden pt-20 pb-24 sm:pt-28 sm:pb-32">
         {/* фоновый градиент */}
         <div className="absolute inset-0 -z-10">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[500px] bg-gradient-to-b from-blue-50 to-transparent dark:from-blue-950/30 dark:to-transparent rounded-full blur-3xl opacity-60" />
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[500px] bg-gradient-to-b from-brand-50 to-transparent dark:from-brand-950/30 dark:to-transparent rounded-full blur-3xl opacity-60" />
         </div>
 
         <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center">
-          <div className="inline-flex items-center gap-2 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs font-semibold px-3 py-1.5 rounded-full mb-6 border border-blue-100 dark:border-blue-800">
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+          <div className="inline-flex items-center gap-2 bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300 text-xs font-semibold px-3 py-1.5 rounded-full mb-6 border border-brand-100 dark:border-brand-800">
+            <span className="w-1.5 h-1.5 rounded-full bg-brand-500 animate-pulse" />
             Бесплатно · Без рекламы · Ваши данные только у вас
           </div>
 
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-tight mb-6">
             Управляйте финансами{' '}
-            <span className="text-blue-600 dark:text-blue-400">осознанно</span>
+            <span className="text-brand-600 dark:text-brand-400">осознанно</span>
           </h1>
 
           <p className="text-lg sm:text-xl text-gray-500 dark:text-gray-400 max-w-2xl mx-auto mb-10 leading-relaxed">
@@ -168,7 +168,7 @@ export default function LandingPage() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
               to="/register"
-              className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold text-base px-7 py-3.5 rounded-xl transition-colors shadow-lg shadow-blue-500/25 w-full sm:w-auto"
+              className="inline-flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 active:bg-brand-800 text-white font-semibold text-base px-7 py-3.5 rounded-xl transition-colors shadow-lg shadow-brand-500/25 w-full sm:w-auto"
             >
               Создать аккаунт бесплатно
               <IconArrow />
@@ -191,13 +191,13 @@ export default function LandingPage() {
               <span className="w-3 h-3 rounded-full bg-yellow-400" />
               <span className="w-3 h-3 rounded-full bg-green-400" />
               <div className="ml-2 flex-1 max-w-xs h-5 rounded bg-gray-100 dark:bg-gray-700 text-xs text-gray-400 flex items-center px-2">
-                financepro.app/dashboard
+                babkoschet.ru/dashboard
               </div>
             </div>
             {/* Контент мокапа */}
             <div className="p-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
-                { label: 'Баланс', value: '₽ 284 500', color: 'text-blue-600 dark:text-blue-400' },
+                { label: 'Баланс', value: '₽ 284 500', color: 'text-brand-600 dark:text-brand-400' },
                 { label: 'Доходы (май)', value: '₽ 120 000', color: 'text-green-600 dark:text-green-400' },
                 { label: 'Расходы (май)', value: '₽ 73 200', color: 'text-red-600 dark:text-red-400' },
                 { label: 'Экономия', value: '₽ 46 800', color: 'text-violet-600 dark:text-violet-400' },
@@ -291,7 +291,7 @@ export default function LandingPage() {
           <div className="grid sm:grid-cols-2 gap-6">
             {STEPS.map(s => (
               <div key={s.n} className="flex gap-5">
-                <div className="flex-none w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-bold text-sm">
+                <div className="flex-none w-12 h-12 rounded-2xl bg-brand-600 text-white flex items-center justify-center font-bold text-sm">
                   {s.n}
                 </div>
                 <div>
@@ -305,17 +305,17 @@ export default function LandingPage() {
       </section>
 
       {/* ── CTA ── */}
-      <section className="py-20 sm:py-24 bg-blue-600 dark:bg-blue-700">
+      <section className="py-20 sm:py-24 bg-brand-600 dark:bg-brand-700">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center">
           <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
             Начните отслеживать финансы уже сегодня
           </h2>
-          <p className="text-blue-100 text-lg mb-10">
+          <p className="text-brand-100 text-lg mb-10">
             Бесплатно, без банковских ключей, без скрытых платежей.
           </p>
           <Link
             to="/register"
-            className="inline-flex items-center gap-2 bg-white hover:bg-blue-50 text-blue-700 font-bold text-base px-8 py-4 rounded-xl transition-colors shadow-lg"
+            className="inline-flex items-center gap-2 bg-white hover:bg-brand-50 text-brand-700 font-bold text-base px-8 py-4 rounded-xl transition-colors shadow-lg"
           >
             Создать аккаунт бесплатно
             <IconArrow />
@@ -327,14 +327,14 @@ export default function LandingPage() {
       <footer className="py-10 border-t border-gray-200 dark:border-gray-800">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-400">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded bg-blue-600 flex items-center justify-center text-white font-bold text-xs">Ф</div>
-            <span>ФинансыПро</span>
+            <div className="w-6 h-6 rounded bg-brand-600 flex items-center justify-center text-white font-bold text-xs">Ф</div>
+            <span>Бабкосчёт</span>
           </div>
           <div className="flex gap-6">
             <Link to="/login" className="hover:text-gray-600 dark:hover:text-gray-300 transition-colors">Войти</Link>
             <Link to="/register" className="hover:text-gray-600 dark:hover:text-gray-300 transition-colors">Регистрация</Link>
           </div>
-          <p>© {new Date().getFullYear()} ФинансыПро. Все права защищены.</p>
+          <p>© {new Date().getFullYear()} Бабкосчёт. Все права защищены.</p>
         </div>
       </footer>
 

@@ -78,7 +78,7 @@ function AddForm({ accounts, categories, onClose }: {
         <select
           id="add-type"
           {...register('type')}
-          className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
         >
           <option value="debit">Расход</option>
           <option value="credit">Доход</option>
@@ -93,7 +93,7 @@ function AddForm({ accounts, categories, onClose }: {
         <select
           id="add-accountId"
           {...register('accountId')}
-          className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
         >
           <option value="">Выберите счёт</option>
           {accounts.map((a) => (
@@ -113,7 +113,7 @@ function AddForm({ accounts, categories, onClose }: {
           <select
             id="add-categoryId"
             {...register('categoryId')}
-            className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
           >
             <option value="">Без категории</option>
             {categories
@@ -136,7 +136,7 @@ function AddForm({ accounts, categories, onClose }: {
           step="0.01"
           min="0"
           placeholder="0.00"
-          className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
         />
         {errors.amount && (
           <p className="mt-1 text-xs text-red-500">{errors.amount.message}</p>
@@ -151,7 +151,7 @@ function AddForm({ accounts, categories, onClose }: {
           id="add-date"
           {...register('date')}
           type="date"
-          className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
         />
         {errors.date && (
           <p className="mt-1 text-xs text-red-500">{errors.date.message}</p>
@@ -167,7 +167,7 @@ function AddForm({ accounts, categories, onClose }: {
           {...register('merchant')}
           type="text"
           placeholder="Название магазина или получателя"
-          className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
         />
       </div>
 
@@ -180,7 +180,7 @@ function AddForm({ accounts, categories, onClose }: {
           {...register('description')}
           type="text"
           placeholder="Необязательное описание"
-          className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
         />
         {errors.description && (
           <p className="mt-1 text-xs text-red-500">{errors.description.message}</p>
@@ -223,7 +223,7 @@ function TransactionDetail({ tx, onClose }: { tx: Transaction; onClose: () => vo
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-5">
       <div className="flex items-center justify-between">
-        <span className={`text-2xl font-bold ${isCredit ? 'text-green-600 dark:text-green-400' : isTransfer ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400'}`}>
+        <span className={`text-2xl font-bold ${isCredit ? 'text-green-600 dark:text-green-400' : isTransfer ? 'text-brand-600 dark:text-brand-400' : 'text-red-600 dark:text-red-400'}`}>
           {isCredit ? '+' : isTransfer ? '' : '-'}{formatMoney(tx.amount, tx.currency)}
         </span>
         <Badge variant={isCredit ? 'success' : isTransfer ? 'info' : 'error'}>
@@ -250,7 +250,7 @@ function TransactionDetail({ tx, onClose }: { tx: Transaction; onClose: () => vo
           id="edit-merchant"
           {...register('merchant')}
           type="text"
-          className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
         />
       </div>
 
@@ -262,7 +262,7 @@ function TransactionDetail({ tx, onClose }: { tx: Transaction; onClose: () => vo
           id="edit-description"
           {...register('description')}
           type="text"
-          className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
         />
         {errors.description && (
           <p className="mt-1 text-xs text-red-500">{errors.description.message}</p>
@@ -378,7 +378,7 @@ export default function TransactionsPage() {
               type="date"
               value={fromDate}
               onChange={(e) => setFromDate(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
           </div>
           <div>
@@ -387,7 +387,7 @@ export default function TransactionsPage() {
               type="date"
               value={toDate}
               onChange={(e) => setToDate(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
           </div>
           <div>
@@ -395,7 +395,7 @@ export default function TransactionsPage() {
             <select
               value={txType}
               onChange={(e) => setTxType(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             >
               <option value="">Все типы</option>
               <option value="debit">Расход</option>
@@ -408,7 +408,7 @@ export default function TransactionsPage() {
             <select
               value={accountId}
               onChange={(e) => setAccountId(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             >
               <option value="">Все счета</option>
               {accounts.map((a) => (
@@ -421,7 +421,7 @@ export default function TransactionsPage() {
             <select
               value={categoryId}
               onChange={(e) => setCategoryId(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             >
               <option value="">Все категории</option>
               {categories.map((c) => (
@@ -437,7 +437,7 @@ export default function TransactionsPage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Поиск..."
-                className="flex-1 min-w-0 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="flex-1 min-w-0 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
               />
               <Button variant="ghost" size="sm" onClick={resetFilters} title="Сбросить фильтры">
                 ✕
@@ -545,7 +545,7 @@ export default function TransactionsPage() {
 
                     {/* Amount */}
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      <span className={`text-sm font-semibold ${isCredit ? 'text-green-600 dark:text-green-400' : isTransfer ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400'}`}>
+                      <span className={`text-sm font-semibold ${isCredit ? 'text-green-600 dark:text-green-400' : isTransfer ? 'text-brand-600 dark:text-brand-400' : 'text-red-600 dark:text-red-400'}`}>
                         {isCredit ? '+' : isTransfer ? '' : '-'}{formatMoney(tx.amount, tx.currency)}
                       </span>
                       <button
@@ -566,9 +566,9 @@ export default function TransactionsPage() {
             <div ref={loadMoreRef} className="h-10 flex items-center justify-center">
               {isFetchingNextPage && (
                 <div className="flex gap-2">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  <div className="w-2 h-2 bg-brand-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <div className="w-2 h-2 bg-brand-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <div className="w-2 h-2 bg-brand-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                 </div>
               )}
               {!hasNextPage && transactions.length > 0 && (

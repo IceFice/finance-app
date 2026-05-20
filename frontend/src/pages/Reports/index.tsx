@@ -44,9 +44,11 @@ const PRESETS: Array<{ key: PresetKey; label: string }> = [
   { key: 'this_year', label: 'Этот год' },
 ];
 
+// Brand-first palette. Inco/expense semantic colors are reused throughout
+// so they keep their meaning even outside the income/expense view.
 const CHART_COLORS = [
-  '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
-  '#06b6d4', '#f97316', '#14b8a6', '#ec4899', '#6366f1',
+  '#6366F1', '#22C55E', '#EF4444', '#F59E0B', '#8B5CF6',
+  '#06B6D4', '#F97316', '#14B8A6', '#EC4899', '#4F46E5',
 ];
 
 function getPresetDates(preset: PresetKey): { from: string; to: string } {
@@ -134,7 +136,7 @@ function OverviewTab({ from, to }: { from: string; to: string }) {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <SummaryStatCard label="Доходы" value={totalIncome.toFixed(2)} currency="RUB" color="text-green-600 dark:text-green-400" />
         <SummaryStatCard label="Расходы" value={totalExpenses.toFixed(2)} currency="RUB" color="text-red-600 dark:text-red-400" />
-        <SummaryStatCard label="Чистые сбережения" value={netSavings.toFixed(2)} currency="RUB" color={netSavings >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400'} />
+        <SummaryStatCard label="Чистые сбережения" value={netSavings.toFixed(2)} currency="RUB" color={netSavings >= 0 ? 'text-brand-600 dark:text-brand-400' : 'text-red-600 dark:text-red-400'} />
       </div>
 
       {chartData.length === 0 ? (
@@ -167,7 +169,7 @@ function OverviewTab({ from, to }: { from: string; to: string }) {
                 <XAxis dataKey="month" tick={{ fontSize: 12 }} />
                 <YAxis tick={{ fontSize: 12 }} />
                 <Tooltip formatter={(v: number) => formatMoney(v.toFixed(2), 'RUB')} />
-                <Line type="monotone" dataKey="net" name="Сбережения" stroke="#3b82f6" strokeWidth={2} dot={{ r: 4 }} />
+                <Line type="monotone" dataKey="net" name="Сбережения" stroke="#6366F1" strokeWidth={2} dot={{ r: 4 }} />
               </LineChart>
             </ResponsiveContainer>
           </Card>
@@ -376,7 +378,7 @@ function CashFlowTab({ from, to }: { from: string; to: string }) {
             type="monotone"
             dataKey="net"
             name="Чистый поток"
-            stroke="#3b82f6"
+            stroke="#6366F1"
             strokeWidth={2}
             strokeDasharray="5 5"
             dot={false}
@@ -433,7 +435,7 @@ function BudgetAnalysisTab({ from, to }: { from: string; to: string }) {
             <YAxis tick={{ fontSize: 12 }} />
             <Tooltip formatter={(v: number) => formatMoney(v.toFixed(2), 'RUB')} />
             <Legend wrapperStyle={{ paddingTop: '8px' }} />
-            <Bar dataKey="budget" name="Бюджет" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="budget" name="Бюджет" fill="#6366F1" radius={[4, 4, 0, 0]} />
             <Bar dataKey="actual" name="Фактически" fill="#f59e0b" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
@@ -504,7 +506,7 @@ export default function ReportsPage() {
                 onClick={() => { setPreset(p.key); setUseCustom(false); }}
                 className={`px-3 py-1.5 text-sm font-medium transition-colors ${
                   !useCustom && preset === p.key
-                    ? 'bg-blue-600 text-white'
+                    ? 'bg-brand-600 text-white'
                     : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'
                 }`}
               >
@@ -518,14 +520,14 @@ export default function ReportsPage() {
               type="date"
               value={customFrom}
               onChange={(e) => { setCustomFrom(e.target.value); setUseCustom(true); }}
-              className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
             <span className="text-gray-400">—</span>
             <input
               type="date"
               value={customTo}
               onChange={(e) => { setCustomTo(e.target.value); setUseCustom(true); }}
-              className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
           </div>
         </div>
@@ -541,7 +543,7 @@ export default function ReportsPage() {
             onClick={() => setActiveTab(tab.key)}
             className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
               activeTab === tab.key
-                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                ? 'border-brand-600 text-brand-600 dark:text-brand-400'
                 : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
             }`}
           >

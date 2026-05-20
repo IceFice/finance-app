@@ -83,7 +83,7 @@ function BudgetCard({
           <Badge variant="info">{PERIOD_LABELS[budget.period]}</Badge>
           <button
             onClick={() => onEdit(budget)}
-            className="text-gray-400 hover:text-blue-500 transition-colors p-1"
+            className="text-gray-400 hover:text-brand-500 transition-colors p-1"
             title="Редактировать"
           >
             ✏️
@@ -173,7 +173,7 @@ function BudgetForm({
           {...register('name')}
           type="text"
           placeholder="Например: Продукты на март"
-          className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
         />
         {errors.name && <p className="mt-1 text-xs text-red-500">{errors.name.message}</p>}
       </div>
@@ -183,7 +183,7 @@ function BudgetForm({
         <select
           id="budget-categoryId"
           {...register('categoryId')}
-          className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
         >
           <option value="">Все категории</option>
           {categories
@@ -204,7 +204,7 @@ function BudgetForm({
             step="0.01"
             min="0"
             placeholder="0.00"
-            className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
           />
           {errors.amount && <p className="mt-1 text-xs text-red-500">{errors.amount.message}</p>}
         </div>
@@ -212,7 +212,7 @@ function BudgetForm({
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Валюта</label>
           <select
             {...register('currency')}
-            className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
           >
             <option value="RUB">RUB</option>
             <option value="USD">USD</option>
@@ -225,7 +225,7 @@ function BudgetForm({
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Период</label>
         <select
           {...register('period')}
-          className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
         >
           <option value="weekly">Недельный</option>
           <option value="monthly">Месячный</option>
@@ -239,7 +239,7 @@ function BudgetForm({
           <input
             {...register('startDate')}
             type="date"
-            className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
           />
         </div>
         <div>
@@ -247,7 +247,7 @@ function BudgetForm({
           <input
             {...register('endDate')}
             type="date"
-            className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
           />
         </div>
       </div>

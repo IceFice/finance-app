@@ -27,7 +27,7 @@ const STYLES: Record<ToastVariant, string> = {
   success: 'bg-green-600 text-white',
   error: 'bg-red-600 text-white',
   warning: 'bg-yellow-500 text-white',
-  info: 'bg-blue-600 text-white',
+  info: 'bg-brand-600 text-white',
 };
 
 function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: (id: string) => void }) {
