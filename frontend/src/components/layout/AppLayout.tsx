@@ -1,23 +1,102 @@
-import { ReactNode } from 'react';
+import { ReactNode, ComponentType, SVGProps } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useUIStore } from '@/store/uiStore';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
+import {
+  IconHome, IconWallet, IconList, IconTarget, IconChart,
+  IconSun, IconMoon, IconLogout, IconMenu,
+} from './NavIcons';
 
-interface NavItem { to: string; label: string; icon: string; }
+type IconCmp = ComponentType<SVGProps<SVGSVGElement>>;
+interface NavItem { to: string; label: string; Icon: IconCmp; }
 
 const NAV_ITEMS: NavItem[] = [
-  { to: '/dashboard',    label: 'Главная',    icon: '🏠' },
-  { to: '/accounts',     label: 'Счета',      icon: '🏦' },
-  { to: '/transactions', label: 'Операции',   icon: '💳' },
-  { to: '/budgets',      label: 'Бюджеты',    icon: '🎯' },
-  { to: '/reports',      label: 'Отчёты',     icon: '📊' },
+  { to: '/dashboard',    label: 'Главная',  Icon: IconHome   },
+  { to: '/accounts',     label: 'Счета',    Icon: IconWallet },
+  { to: '/transactions', label: 'Операции', Icon: IconList   },
+  { to: '/budgets',      label: 'Бюджеты',  Icon: IconTarget },
+  { to: '/reports',      label: 'Отчёты',   Icon: IconChart  },
 ];
+
+// ── Logo with a brand ₽ pill — used across header & landing ───────────────
+function Logo({ collapsed }: { collapsed?: boolean }) {
+  return (
+    <div className="flex items-center gap-3 px-2">
+      <div
+        className="w-9 h-9 rounded-xl bg-brand-600 text-white grid place-items-center font-bold tracking-[-0.04em]"
+        style={{ boxShadow: '0 6px 16px -6px #6366F1' }}
+      >
+        ₽
+      </div>
+      {!collapsed && (
+        <div className="min-w-0">
+          <div className="text-[15px] font-semibold tracking-tight text-white truncate">Бабкосчёт</div>
+          <div className="text-[11px] text-sidebarMute">Личные финансы</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SidebarLink({ to, label, Icon, collapsed }: NavItem & { collapsed: boolean }) {
+  return (
+    <NavLink
+      to={to}
+      end
+      className={({ isActive }) =>
+        cn(
+          'relative flex items-center gap-3 mx-2 px-3 py-2.5 rounded-lg text-sm transition-colors',
+          isActive
+            ? 'bg-white/10 text-white font-medium'
+            : 'text-[#B5B9CC] hover:bg-white/[0.04] hover:text-white'
+        )
+      }
+    >
+      {({ isActive }) => (
+        <>
+          {isActive && (
+            <span
+              aria-hidden="true"
+              className="absolute -left-2 top-2 bottom-2 w-[3px] rounded-full bg-brand-600"
+            />
+          )}
+          <span className="flex-shrink-0"><Icon /></span>
+          {!collapsed && <span className="truncate">{label}</span>}
+        </>
+      )}
+    </NavLink>
+  );
+}
+
+function SidebarBtn({
+  Icon, label, onClick, danger, collapsed,
+}: {
+  Icon: IconCmp; label: string; onClick: () => void; danger?: boolean; collapsed: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      title={label}
+      aria-label={label}
+      className={cn(
+        'w-full flex items-center gap-3 mx-2 px-3 py-2 rounded-lg text-sm transition-colors',
+        danger
+          ? 'text-sidebarMute hover:bg-red-500/10 hover:text-red-400'
+          : 'text-sidebarMute hover:bg-white/[0.05] hover:text-white'
+      )}
+    >
+      <span className="flex-shrink-0"><Icon /></span>
+      {!collapsed && <span className="truncate">{label}</span>}
+    </button>
+  );
+}
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   const { sidebarOpen, toggleSidebar, theme, toggleTheme } = useUIStore();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const collapsed = !sidebarOpen;
 
   async function handleLogout() {
     await logout();
@@ -25,85 +104,55 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-950">
-      {/* Sidebar — desktop only */}
-      <aside className={cn(
-        'hidden md:flex flex-col bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 transition-all duration-200',
-        sidebarOpen ? 'w-60' : 'w-16'
-      )}>
-        {/* Logo */}
-        <div className="h-16 flex items-center px-4 border-b border-gray-200 dark:border-gray-800 flex-shrink-0">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-            Ф
-          </div>
-          {sidebarOpen && (
-            <span className="ml-3 font-semibold text-gray-900 dark:text-white truncate">ФинансыПро</span>
-          )}
+    <div className="flex min-h-screen bg-cream dark:bg-[#0F1117] text-gray-900 dark:text-gray-100">
+      {/* ── Sidebar (desktop, always dark) ── */}
+      <aside
+        className={cn(
+          'hidden md:flex flex-col flex-shrink-0 sticky top-0 h-screen',
+          'bg-sidebar text-white',
+          'transition-[width] duration-200',
+          collapsed ? 'w-[72px]' : 'w-[244px]'
+        )}
+      >
+        <div className="px-4 pt-7 pb-6">
+          <Logo collapsed={collapsed} />
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 py-4 space-y-1 px-2 overflow-y-auto">
-          {NAV_ITEMS.map(item => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) => cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
-                isActive
-                  ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
-                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
-              )}
-            >
-              <span className="text-base flex-shrink-0">{item.icon}</span>
-              {sidebarOpen && <span className="truncate">{item.label}</span>}
-            </NavLink>
+        <nav className="flex flex-col gap-1 px-0">
+          {NAV_ITEMS.map((item) => (
+            <SidebarLink key={item.to} {...item} collapsed={collapsed} />
           ))}
         </nav>
 
-        {/* Footer */}
-        <div className="p-3 border-t border-gray-200 dark:border-gray-800 space-y-1">
-          <button
+        <div className="mt-auto pb-4 pt-3 border-t border-white/[0.05] flex flex-col gap-1">
+          <SidebarBtn
+            Icon={theme === 'dark' ? IconSun : IconMoon}
+            label={theme === 'dark' ? 'Светлая тема' : 'Тёмная тема'}
             onClick={toggleTheme}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-          >
-            <span className="flex-shrink-0">{theme === 'dark' ? '☀️' : '🌙'}</span>
-            {sidebarOpen && <span>{theme === 'dark' ? 'Светлая тема' : 'Тёмная тема'}</span>}
-          </button>
-          <button
-            onClick={handleLogout}
-            aria-label="Выйти"
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 dark:text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/10 hover:text-red-600 dark:hover:text-red-400 transition-colors"
-          >
-            <span className="flex-shrink-0">🚪</span>
-            {sidebarOpen && <span aria-hidden="true">Выйти</span>}
-          </button>
-          {sidebarOpen && user && (
-            <div className="px-3 py-2 text-xs text-gray-500 dark:text-gray-500 truncate">
-              {user.email}
-            </div>
+            collapsed={collapsed}
+          />
+          <SidebarBtn Icon={IconLogout} label="Выйти" onClick={handleLogout} danger collapsed={collapsed} />
+          {!collapsed && user && (
+            <div className="px-5 pt-2 text-[11px] text-sidebarMute truncate">{user.email}</div>
           )}
         </div>
-
-        {/* Toggle button */}
-        <button
-          onClick={toggleSidebar}
-          className="absolute left-0 bottom-24 ml-[calc(100%-12px)] w-6 h-6 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-full flex items-center justify-center text-xs text-gray-500 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors hidden md:flex"
-          style={{ position: 'relative', marginLeft: 'auto', marginRight: 'auto', display: 'flex' }}
-        >
-          {sidebarOpen ? '←' : '→'}
-        </button>
       </aside>
 
-      {/* Main content */}
+      {/* ── Main column ── */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Top bar */}
-        <header className="h-16 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 flex items-center px-4 flex-shrink-0 gap-3">
+        {/* Top bar (mobile + small action area on desktop) */}
+        <header className="h-14 md:h-16 bg-white dark:bg-[#181B26] border-b border-gray-200 dark:border-[#262A3A] flex items-center px-4 gap-3 flex-shrink-0">
           <button
             onClick={toggleSidebar}
-            className="hidden md:flex p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
+            aria-label="Свернуть меню"
+            className="hidden md:flex p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-white/5"
           >
-            ☰
+            <IconMenu />
           </button>
+          <div className="md:hidden flex items-center gap-2 font-semibold tracking-tight">
+            <span className="w-7 h-7 rounded-lg bg-brand-600 text-white grid place-items-center font-bold">₽</span>
+            <span>Бабкосчёт</span>
+          </div>
           <div className="flex-1" />
           <span className="text-sm text-gray-500 dark:text-gray-400 hidden sm:block">
             {user?.fullName ?? user?.email}
@@ -111,23 +160,24 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto">
-          {children}
-        </main>
+        <main className="flex-1 overflow-y-auto">{children}</main>
 
-        {/* Mobile bottom nav */}
-        <nav className="md:hidden flex border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
-          {NAV_ITEMS.map(item => (
+        {/* Mobile bottom nav — same nav items, brand accent for active */}
+        <nav className="md:hidden flex border-t border-gray-200 dark:border-[#262A3A] bg-white dark:bg-[#181B26]">
+          {NAV_ITEMS.map(({ to, label, Icon }) => (
             <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) => cn(
-                'flex-1 flex flex-col items-center gap-1 py-3 text-xs font-medium transition-colors',
-                isActive ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'
-              )}
+              key={to}
+              to={to}
+              end
+              className={({ isActive }) =>
+                cn(
+                  'flex-1 flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition-colors',
+                  isActive ? 'text-brand-600 dark:text-brand-500' : 'text-gray-500 dark:text-gray-400'
+                )
+              }
             >
-              <span className="text-xl">{item.icon}</span>
-              <span>{item.label}</span>
+              <Icon />
+              <span>{label}</span>
             </NavLink>
           ))}
         </nav>
