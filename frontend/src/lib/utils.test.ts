@@ -21,15 +21,22 @@ describe('sumMoney', () => {
 });
 
 describe('formatMoney', () => {
-  it('formats a numeric string as RUB currency', () => {
-    const out = formatMoney('1250.5', 'RUB');
-    expect(out).toMatch(/1\s?250,50/);
-    expect(out).toMatch(/₽/);
+  it('formats RUB without kopecks by default (banking convention)', () => {
+    expect(formatMoney('1250.5', 'RUB')).toMatch(/1\s?251\s?₽/);
+  });
+
+  it('keeps 2 decimals for USD/EUR by default', () => {
+    expect(formatMoney('1250.5', 'USD')).toMatch(/1\s?250,50/);
+    expect(formatMoney('1250.5', 'EUR')).toMatch(/1\s?250,50/);
+  });
+
+  it('honours the explicit fractionDigits override', () => {
+    expect(formatMoney('1250', 'RUB', 2)).toMatch(/1\s?250,00/);
   });
 
   it('falls back to 0 for NaN instead of printing "NaN"', () => {
     const out = formatMoney('not-a-number', 'RUB');
     expect(out).not.toMatch(/NaN/i);
-    expect(out).toMatch(/0,00/);
+    expect(out).toMatch(/^0\s?₽/);
   });
 });

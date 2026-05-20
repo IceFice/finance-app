@@ -7,12 +7,21 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatMoney(amount: string | number, currency = 'USD'): string {
+// Per-currency default fraction digits. RUB conventionally without kopecks
+// in UI; foreign currencies keep 2 decimals. Pass `fractionDigits` to override.
+const DEFAULT_FRACTION: Record<string, number> = { RUB: 0, USD: 2, EUR: 2 };
+
+export function formatMoney(
+  amount: string | number,
+  currency = 'RUB',
+  fractionDigits?: number
+): string {
   const raw = typeof amount === 'string' ? Number(amount) : amount;
   const num = Number.isFinite(raw) ? raw : 0;
+  const f = fractionDigits ?? DEFAULT_FRACTION[currency] ?? 2;
   return new Intl.NumberFormat('ru-RU', {
     style: 'currency', currency,
-    minimumFractionDigits: 2, maximumFractionDigits: 2,
+    minimumFractionDigits: f, maximumFractionDigits: f,
   }).format(num);
 }
 
