@@ -146,10 +146,10 @@ jobs:
               exit 1
             fi
 
-            echo "▶ Prune dangling images"
-            docker image prune -f \
-              --filter "label=org.opencontainers.image.source=https://github.com/${{ github.repository }}" \
-              2>/dev/null || true
+            echo "▶ Prune ALL unused images + build cache (every deploy pushes"
+            echo "  new backend/frontend tags — without this the small disk fills)"
+            docker image prune -af 2>/dev/null || true
+            docker builder prune -af 2>/dev/null || true
 
             echo ""
             echo "✅ Production deploy complete (tag: $TAG)"

@@ -17,15 +17,17 @@ export DEBIAN_FRONTEND=noninteractive
 apt-get update -y
 apt-get install -y ca-certificates curl git ufw
 
-echo "▶ [2/6] 2 GB swap (RAM is only 2 GB — protects builds/Postgres from OOM)"
+echo "▶ [2/6] 3 GB swap (RAM is only 2 GB — cushions deploy/Postgres spikes)"
 if [ ! -f /swapfile ]; then
-  fallocate -l 2G /swapfile
+  fallocate -l 3G /swapfile
   chmod 600 /swapfile
   mkswap /swapfile
   swapon /swapfile
   echo '/swapfile none swap sw 0 0' >> /etc/fstab
-  sysctl -w vm.swappiness=10
-  echo 'vm.swappiness=10' > /etc/sysctl.d/99-swappiness.conf
+  # swappiness=30: lean on swap a bit BEFORE the kernel resorts to OOM-killing
+  # (a slow process beats a dead sshd). Keep cache pressure modest.
+  sysctl -w vm.swappiness=30
+  echo 'vm.swappiness=30' > /etc/sysctl.d/99-swappiness.conf
 fi
 
 echo "▶ [3/6] Install Docker Engine + compose plugin"

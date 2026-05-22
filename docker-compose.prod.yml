@@ -5,18 +5,33 @@ name: finance-app
 # Postgres and Redis are NOT published — they live on the internal bridge
 # network only. All variables come from the sibling `.env` file
 # (see deploy/.env.production.example).
+#
+# OOM hardening (why mem_limit AND deploy.resources):
+#   `deploy.resources.limits` is only enforced under Swarm. Plain
+#   `docker compose up` honours the top-level `mem_limit` / `mem_reservation`
+#   keys instead. We set BOTH so the cap is enforced no matter how the stack
+#   is launched. Hard per-container caps mean a runaway container is OOM-killed
+#   inside its own cgroup — the host (and sshd!) stays alive. Sum of limits
+#   (~1.15 GB) leaves ~0.85 GB for the OS on a 2 GB box, plus swap as cushion.
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"   # cap each container's logs so they can't fill the disk
+    max-file: "3"
 
 services:
   # ── PostgreSQL ──────────────────────────────────────────────────────────────
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
+    logging: *default-logging
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
-    # Tuned for a ~512 MB container on a 1 vCPU / 2 GB VPS so Postgres
-    # can't balloon and OOM-kill the rest of the stack.
+    # Tuned for a small container on a 1 vCPU / 2 GB VPS so Postgres can't
+    # balloon and OOM-kill the rest of the stack.
     command:
       - postgres
       - -c
@@ -39,15 +54,18 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+    mem_limit: 448m
+    mem_reservation: 256m
     deploy:
       resources:
         limits:
-          memory: 512m
+          memory: 448m
 
   # ── Redis ───────────────────────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
     restart: unless-stopped
+    logging: *default-logging
     command: redis-server --save 60 1 --appendonly yes --loglevel warning --maxmemory 128mb --maxmemory-policy allkeys-lru
     volumes:
       - redis_data:/data
@@ -56,20 +74,26 @@ services:
       interval: 10s
       timeout: 3s
       retries: 5
+    mem_limit: 160m
+    mem_reservation: 64m
     deploy:
       resources:
         limits:
-          memory: 192m
+          memory: 160m
 
   # ── Backend API (image from ghcr.io, internal only) ─────────────────────────
   backend:
     image: ${BACKEND_IMAGE:-ghcr.io/icefice/finance-app/backend:latest}
     restart: unless-stopped
+    logging: *default-logging
     env_file:
       - .env
     environment:
       NODE_ENV: production
       PORT: "4000"
+      # Cap the V8 heap below the container limit so Node GCs instead of
+      # growing past the cgroup cap and getting OOM-killed.
+      NODE_OPTIONS: "--max-old-space-size=320"
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       REDIS_URL: redis://redis:6379
     expose:
@@ -85,15 +109,18 @@ services:
       timeout: 5s
       retries: 3
       start_period: 20s
+    mem_limit: 448m
+    mem_reservation: 256m
     deploy:
       resources:
         limits:
-          memory: 512m
+          memory: 448m
 
   # ── nginx: serves SPA + reverse-proxies /api (public entrypoint) ────────────
   frontend:
     image: ${FRONTEND_IMAGE:-ghcr.io/icefice/finance-app/frontend:latest}
     restart: unless-stopped
+    logging: *default-logging
     ports:
       - "80:80"
       - "443:443"
@@ -105,10 +132,12 @@ services:
       - ./deploy/certbot/conf:/etc/letsencrypt
     depends_on:
       - backend
+    mem_limit: 96m
+    mem_reservation: 32m
     deploy:
       resources:
         limits:
-          memory: 128m
+          memory: 96m
 
 volumes:
   postgres_data:
