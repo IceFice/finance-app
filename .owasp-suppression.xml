@@ -8,4 +8,18 @@
       <cve>CVE-XXXX-XXXXX</cve>
     </suppress>
   -->
+
+  <!--
+    OWASP Dependency-Check CPE false positive: it maps the npm `uuid` package
+    to GHSA-w5hq-g745-h8pq (CVSS 7.5). The authoritative GitHub Advisory DB —
+    used by `npm audit`, which runs in the same Security Gates pipeline and
+    passes clean — reports NO advisory for uuid@9.x. `uuid` is a classic
+    generic-name CPE-mismatch target for DC. Scoped tightly to this package
+    and this one advisory so real future uuid CVEs are still surfaced.
+  -->
+  <suppress>
+    <notes>npm uuid — DC CPE false positive; npm audit (GHSA DB) is clean for uuid@9.x.</notes>
+    <packageUrl regex="true">^pkg:npm/uuid@.*$</packageUrl>
+    <vulnerabilityName>GHSA-w5hq-g745-h8pq</vulnerabilityName>
+  </suppress>
 </suppressions>
