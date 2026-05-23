@@ -9,7 +9,7 @@ import { Card } from '../../components/ui/Card';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { QueryError } from '../../components/ui/QueryError';
 import { formatMoney } from '../../lib/utils';
-import { format, subMonths, startOfMonth, endOfMonth, startOfYear } from 'date-fns';
+import { format, subMonths, startOfMonth, endOfMonth, startOfYear, differenceInCalendarDays, subDays } from 'date-fns';
 import {
   BarChart,
   Bar,
@@ -69,6 +69,214 @@ function getPresetDates(preset: PresetKey): { from: string; to: string } {
     from: format(startOfYear(now), 'yyyy-MM-dd'),
     to: format(endOfMonth(now), 'yyyy-MM-dd'),
   };
+}
+
+// Previous range of the same length, ending the day before `from`. Used to
+// compute period-over-period deltas without depending on calendar month math.
+function getPrevRange(from: string, to: string): { from: string; to: string } {
+  const f = new Date(from);
+  const t = new Date(to);
+  if (Number.isNaN(f.getTime()) || Number.isNaN(t.getTime())) return { from, to };
+  const lenDays = Math.max(1, differenceInCalendarDays(t, f) + 1);
+  const prevTo = subDays(f, 1);
+  const prevFrom = subDays(prevTo, lenDays - 1);
+  return { from: format(prevFrom, 'yyyy-MM-dd'), to: format(prevTo, 'yyyy-MM-dd') };
+}
+
+// % change, guarding against division by zero. Returns null when we can't tell
+// the delta (e.g. the previous period had nothing to compare against).
+function pctChange(curr: number, prev: number): number | null {
+  if (!Number.isFinite(prev) || prev === 0) return null;
+  return ((curr - prev) / Math.abs(prev)) * 100;
+}
+
+// Inline coloured pill ↑12% / ↓5%. `goodWhenUp` flips the colour semantics:
+// for income/savings, growth is good; for expenses, growth is bad.
+function DeltaBadge({ value, goodWhenUp = true }: { value: number | null; goodWhenUp?: boolean }) {
+  if (value === null) {
+    return (
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[11px] font-medium bg-gray-100 dark:bg-white/[0.06] text-gray-500 dark:text-gray-400">
+        нет данных
+      </span>
+    );
+  }
+  const up = value > 0;
+  const flat = Math.abs(value) < 0.1;
+  const positive = flat ? false : goodWhenUp ? up : !up;
+  const cls = flat
+    ? 'bg-gray-100 dark:bg-white/[0.06] text-gray-600 dark:text-gray-300'
+    : positive
+      ? 'bg-green-100 dark:bg-green-500/15 text-green-700 dark:text-green-400'
+      : 'bg-red-100 dark:bg-red-500/15 text-red-700 dark:text-red-400';
+  const arrow = flat ? '→' : up ? '↑' : '↓';
+  return (
+    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[11px] font-medium tnum ${cls}`}>
+      {arrow}{Math.abs(value).toFixed(Math.abs(value) >= 100 ? 0 : 1)}%
+    </span>
+  );
+}
+
+interface MonthlyRow { income: string | number; expenses: string | number; net?: string | number }
+interface CategoryRow { category_name: string; category_color?: string; total: string | number }
+function sumIncome(rows: MonthlyRow[]): number {
+  return rows.reduce((s, m) => s + parseFloat(String(m.income ?? 0)), 0);
+}
+function sumExpenses(rows: MonthlyRow[]): number {
+  return rows.reduce((s, m) => s + parseFloat(String(m.expenses ?? 0)), 0);
+}
+
+// ─── HeroKPIs — Savings rate / Top category / Daily avg / Forecast ─────────
+// Sits above the tab strip so the four headline numbers are visible no matter
+// which tab the user lands on. Fetches the same 2 report endpoints twice
+// (current + previous period of equal length) so each tile can carry a Δ.
+function HeroKPIs({ from, to }: { from: string; to: string }) {
+  const prev = getPrevRange(from, to);
+  const cur  = useReportsMonthlySummary({ from, to });
+  const pPrev = useReportsMonthlySummary(prev);
+  const catCur  = useReportsSpendingByCategory({ from, to });
+  const catPrev = useReportsSpendingByCategory(prev);
+
+  const curMonths  = (cur.data  as MonthlyRow[] | undefined) ?? [];
+  const prevMonths = (pPrev.data as MonthlyRow[] | undefined) ?? [];
+  const curCats    = (catCur.data  as CategoryRow[] | undefined) ?? [];
+  const prevCats   = (catPrev.data as CategoryRow[] | undefined) ?? [];
+
+  const income     = sumIncome(curMonths);
+  const expenses   = sumExpenses(curMonths);
+  const prevExpenses = sumExpenses(prevMonths);
+  const prevIncome   = sumIncome(prevMonths);
+
+  // Savings rate — share of income that survives the period.
+  const savingsRate = income > 0 ? ((income - expenses) / income) * 100 : 0;
+  const prevSavingsRate = prevIncome > 0 ? ((prevIncome - prevExpenses) / prevIncome) * 100 : 0;
+  // Use absolute delta in percentage points (not %-of-%) — more meaningful
+  // for savings rate.
+  const savingsDelta = (cur.isSuccess && pPrev.isSuccess && prevIncome > 0)
+    ? savingsRate - prevSavingsRate
+    : null;
+
+  // Top category — first row of spending-by-category (server already sorts
+  // by total desc). Its delta is %-change of that specific category between
+  // periods (matched by name).
+  const top = curCats[0];
+  const topPrev = top ? prevCats.find(c => c.category_name === top.category_name) : undefined;
+  const topTotal = top ? parseFloat(String(top.total)) : 0;
+  const topPrevTotal = topPrev ? parseFloat(String(topPrev.total)) : 0;
+  const topShare = expenses > 0 && top ? (topTotal / expenses) * 100 : 0;
+  const topDelta = top ? pctChange(topTotal, topPrevTotal) : null;
+
+  // Daily averages over each period (calendar days, not just days with txs).
+  const days = Math.max(1, differenceInCalendarDays(new Date(to), new Date(from)) + 1);
+  const prevDays = Math.max(1, differenceInCalendarDays(new Date(prev.to), new Date(prev.from)) + 1);
+  const dailyAvg = expenses / days;
+  const prevDailyAvg = prevExpenses / prevDays;
+  const dailyDelta = pctChange(dailyAvg, prevDailyAvg);
+
+  // Forecast — linear projection from the elapsed portion of the period.
+  // Falls back to plain "expenses" when the period is already fully in the
+  // past or hasn't started.
+  const today = new Date();
+  const elapsedDays = Math.max(
+    0,
+    Math.min(days, differenceInCalendarDays(today, new Date(from)) + 1),
+  );
+  const inProgress = elapsedDays > 0 && elapsedDays < days;
+  const forecast = inProgress
+    ? (expenses / elapsedDays) * days
+    : expenses;
+  const forecastDelta = pctChange(forecast, prevExpenses);
+
+  const isLoading = cur.isLoading || pPrev.isLoading || catCur.isLoading || catPrev.isLoading;
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-[120px] rounded-2xl" />)}
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <HeroTile
+        label="Ставка сбережений" icon="🐷"
+        tintClass="bg-[#EEEBFB] dark:bg-[#1B1B30]" accentHex="#6366F1"
+        value={`${savingsRate.toFixed(0)}%`}
+        valueClass={savingsRate >= 0 ? 'text-brand-600 dark:text-brand-400' : 'text-expense'}
+        sub={income > 0 ? `${formatMoney((income - expenses).toFixed(2))} из ${formatMoney(income.toFixed(2))}` : 'нет доходов в периоде'}
+        delta={savingsDelta !== null ? { value: savingsDelta, goodWhenUp: true, asPP: true } : undefined}
+      />
+      <HeroTile
+        label="Топ-категория" icon="🏆"
+        tintClass="bg-[#FDECEC] dark:bg-[#2A1A1F]" accentHex="#EF4444"
+        value={top ? `${formatMoney(topTotal.toFixed(2))}` : '—'}
+        sub={top ? `${top.category_name} · ${topShare.toFixed(0)}% всех расходов` : 'нет расходов'}
+        delta={topDelta !== null ? { value: topDelta, goodWhenUp: false } : undefined}
+      />
+      <HeroTile
+        label="Средний дневной расход" icon="📆"
+        tintClass="bg-[#FFF6E6] dark:bg-[#2A2317]" accentHex="#F59E0B"
+        value={formatMoney(dailyAvg.toFixed(2))}
+        sub={`за ${days} ${days === 1 ? 'день' : days < 5 ? 'дня' : 'дней'}`}
+        delta={dailyDelta !== null ? { value: dailyDelta, goodWhenUp: false } : undefined}
+      />
+      <HeroTile
+        label={inProgress ? 'Прогноз на период' : 'Расходы за период'} icon={inProgress ? '🔮' : '📊'}
+        tintClass="bg-[#EEF0FF] dark:bg-[#1A2230]" accentHex="#6366F1"
+        value={formatMoney(forecast.toFixed(2))}
+        sub={inProgress
+          ? `прошло ${elapsedDays} из ${days} дн.`
+          : `${days} ${days === 1 ? 'день' : days < 5 ? 'дня' : 'дней'} завершено`}
+        delta={forecastDelta !== null ? { value: forecastDelta, goodWhenUp: false } : undefined}
+      />
+    </div>
+  );
+}
+
+function HeroTile({
+  label, icon, value, valueClass, sub, delta, tintClass, accentHex,
+}: {
+  label: string; icon: string; value: string; valueClass?: string; sub?: string;
+  delta?: { value: number; goodWhenUp: boolean; asPP?: boolean };
+  tintClass: string; accentHex: string;
+}) {
+  return (
+    <div className={`rounded-2xl p-4 min-h-[120px] flex flex-col gap-2 shadow-soft ${tintClass}`}>
+      <div className="flex items-center gap-2">
+        <span
+          className="w-7 h-7 rounded-lg grid place-items-center text-[14px]"
+          style={{ backgroundColor: `${accentHex}28`, color: accentHex }}
+          aria-hidden="true"
+        >
+          {icon}
+        </span>
+        <span className="text-xs font-medium text-gray-600 dark:text-gray-400 flex-1 truncate">{label}</span>
+        {delta && (
+          delta.asPP
+            // For savings-rate-style %, render absolute pp instead of % of %.
+            ? (
+              <span
+                className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[11px] font-medium tnum ${
+                  Math.abs(delta.value) < 0.1
+                    ? 'bg-gray-100 dark:bg-white/[0.06] text-gray-600 dark:text-gray-300'
+                    : (delta.value > 0) === delta.goodWhenUp
+                      ? 'bg-green-100 dark:bg-green-500/15 text-green-700 dark:text-green-400'
+                      : 'bg-red-100 dark:bg-red-500/15 text-red-700 dark:text-red-400'
+                }`}
+                title="к прошлому периоду"
+              >
+                {Math.abs(delta.value) < 0.1 ? '→' : delta.value > 0 ? '↑' : '↓'}
+                {Math.abs(delta.value).toFixed(1)} п.п.
+              </span>
+            )
+            : <DeltaBadge value={delta.value} goodWhenUp={delta.goodWhenUp} />
+        )}
+      </div>
+      <div className={`text-[22px] font-semibold leading-tight tracking-tight tnum truncate ${valueClass ?? 'text-gray-900 dark:text-white'}`}>
+        {value}
+      </div>
+      {sub && <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-auto truncate">{sub}</div>}
+    </div>
+  );
 }
 
 // Tinted v3 stat card with icon chip + sub line. Sticks to the same shape
@@ -605,6 +813,9 @@ export default function ReportsPage() {
           </div>
         </div>
       </Card>
+
+      {/* ── Hero KPIs — visible above every tab ── */}
+      <HeroKPIs from={from} to={to} />
 
       {/* ── Tab strip with accent underline ── */}
       <div role="tablist" className="flex gap-1 border-b border-gray-200 dark:border-[#262A3A]">
