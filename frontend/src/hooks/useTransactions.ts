@@ -74,6 +74,25 @@ export function useCreateTransaction() {
   });
 }
 
+export interface CreateTransferInput {
+  fromAccountId: string;
+  toAccountId: string;
+  amount: string;
+  currency: string;
+  date: string;
+  description?: string;
+}
+export function useCreateTransfer() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreateTransferInput) => api.post('/transactions/transfer', data),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['transactions'] });
+      void qc.invalidateQueries({ queryKey: ['accounts'] });
+    },
+  });
+}
+
 export function useUpdateTransaction() {
   const qc = useQueryClient();
   return useMutation({
