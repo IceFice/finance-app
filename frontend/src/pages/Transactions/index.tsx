@@ -224,7 +224,7 @@ function TransactionDetail({ tx, onClose }: { tx: Transaction; onClose: () => vo
     <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-5">
       <div className="flex items-center justify-between">
         <span className={`text-2xl font-bold ${isCredit ? 'text-income' : isTransfer ? 'text-brand-600 dark:text-brand-400' : 'text-expense'}`}>
-          {isCredit ? '+' : isTransfer ? '' : '−'}{formatMoney(tx.amount, tx.currency)}
+          {isCredit ? '+' : isTransfer ? '' : '−'}{formatMoney(tx.amount)}
         </span>
         <Badge variant={isCredit ? 'success' : isTransfer ? 'info' : 'error'}>
           {isCredit ? 'Доход' : isTransfer ? 'Перевод' : 'Расход'}
@@ -453,7 +453,7 @@ function TxRow({ tx, onOpen, onDelete }: { tx: Transaction; onOpen: () => void; 
           isIn ? 'text-income' : isTransfer ? 'text-brand-600 dark:text-brand-400' : 'text-gray-900 dark:text-white'
         )}
       >
-        {isIn ? '+' : isTransfer ? '' : '−'}{formatMoney(tx.amount, tx.currency)}
+        {isIn ? '+' : isTransfer ? '' : '−'}{formatMoney(tx.amount)}
       </div>
       <div className="text-right">
         <button
@@ -470,7 +470,7 @@ function TxRow({ tx, onOpen, onDelete }: { tx: Transaction; onOpen: () => void; 
   );
 }
 
-function DayHeader({ date, sumNet, currency, showSubtotal }: { date: string; sumNet: number; currency: string; showSubtotal: boolean }) {
+function DayHeader({ date, sumNet, showSubtotal }: { date: string; sumNet: number; showSubtotal: boolean }) {
   const { title, weekday } = dayLabel(date);
   const positive = sumNet >= 0;
   return (
@@ -481,7 +481,7 @@ function DayHeader({ date, sumNet, currency, showSubtotal }: { date: string; sum
         className="ml-auto tnum normal-case tracking-normal font-semibold"
         style={{ color: positive ? INCOME_HEX : EXPENSE_HEX }}
       >
-        {positive ? '+' : '−'}{formatMoney(Math.abs(sumNet), currency)}
+        {positive ? '+' : '−'}{formatMoney(Math.abs(sumNet))}
       </span>}
     </div>
   );
@@ -542,12 +542,9 @@ export default function TransactionsPage() {
     return Array.from(map.entries()).map(([date, txs]) => ({ date, txs }));
   }, [transactions]);
 
-  // Stat strip — derived from loaded transactions in the chosen currency.
-  // Currency for display: the first non-empty account's currency or RUB.
-  const displayCurrency = accounts[0]?.currency ?? 'RUB';
-  const sameCurrency = transactions.filter((t) => t.currency === displayCurrency);
-  const credits = sameCurrency.filter((t) => t.type === 'credit');
-  const debits  = sameCurrency.filter((t) => t.type === 'debit');
+  // Stat strip — RUB only, so we aggregate all loaded transactions.
+  const credits = transactions.filter((t) => t.type === 'credit');
+  const debits  = transactions.filter((t) => t.type === 'debit');
   const totalIncome   = Number(sumMoney(credits.map((t) => t.amount)));
   const totalExpenses = Number(sumMoney(debits.map((t) => t.amount)));
   const avgCheck      = debits.length > 0 ? totalExpenses / debits.length : 0;
@@ -617,19 +614,19 @@ export default function TransactionsPage() {
           sparkPoints={[3,5,4,7,5,8,6,9,8,11,9,12]}
         />
         <StatCard
-          label="Доходы" value={`+${formatMoney(totalIncome, displayCurrency)}`} sub={`${credits.length} операций`}
+          label="Доходы" value={`+${formatMoney(totalIncome)}`} sub={`${credits.length} операций`}
           tintClass="bg-[#E8F7EE] dark:bg-[#142421]"
           accent={INCOME_HEX} valueClass="text-income"
           sparkPoints={[20,22,24,25,28,30,32,34,35,36,38,40]}
         />
         <StatCard
-          label="Расходы" value={`−${formatMoney(totalExpenses, displayCurrency)}`} sub={`${debits.length} операций`}
+          label="Расходы" value={`−${formatMoney(totalExpenses)}`} sub={`${debits.length} операций`}
           tintClass="bg-[#FDECEC] dark:bg-[#2A1A1F]"
           accent={EXPENSE_HEX} valueClass="text-expense"
           sparkPoints={[18,16,20,22,19,24,21,26,23,28,25,22]}
         />
         <StatCard
-          label="Средний чек" value={formatMoney(avgCheck, displayCurrency)} sub="по расходам"
+          label="Средний чек" value={formatMoney(avgCheck)} sub="по расходам"
           tintClass="bg-[#EEEBFB] dark:bg-[#1B1B30]"
           accent={BRAND_HEX} valueClass="text-brand-600 dark:text-brand-400"
           sparkPoints={[8,10,9,11,12,10,13,11,14,12,15,14]}
@@ -748,13 +745,9 @@ export default function TransactionsPage() {
         ) : (
           <>
             {groups.map((g) => {
-              // Daily subtotal in the row's own currency. When a day mixes
-              // currencies (rare) we fall back to the dominant one for display
-              // — sum stays signed in that currency only.
-              const cur = g.txs[0]?.currency ?? displayCurrency;
-              const sameCur = g.txs.filter((t) => t.currency === cur);
-              const inSum  = Number(sumMoney(sameCur.filter((t) => t.type === 'credit').map((t) => t.amount)));
-              const outSum = Number(sumMoney(sameCur.filter((t) => t.type === 'debit').map((t) => t.amount)));
+              // Daily subtotal — RUB-only, sum across all txs of the day.
+              const inSum  = Number(sumMoney(g.txs.filter((t) => t.type === 'credit').map((t) => t.amount)));
+              const outSum = Number(sumMoney(g.txs.filter((t) => t.type === 'debit').map((t) => t.amount)));
               const net = inSum - outSum;
               return (
                 <div key={g.date}>
@@ -762,7 +755,7 @@ export default function TransactionsPage() {
                       repeat the row's amount verbatim — drop it. Avoids
                       duplicate text leaves that break strict-mode locator
                       assertions (Playwright getByText). */}
-                  <DayHeader date={g.date} sumNet={net} currency={cur} showSubtotal={g.txs.length > 1} />
+                  <DayHeader date={g.date} sumNet={net} showSubtotal={g.txs.length > 1} />
                   {g.txs.map((tx) => (
                     <TxRow
                       key={tx.id}

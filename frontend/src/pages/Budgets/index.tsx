@@ -296,8 +296,8 @@ function BudgetCard({
       {/* Numbers + progress */}
       <div>
         <div className="flex items-baseline justify-between mb-2">
-          <span className="text-[22px] font-semibold tracking-tight tnum">{formatMoney(spent, budget.currency)}</span>
-          <span className="text-xs text-gray-500 dark:text-gray-400 tnum">из {formatMoney(limit, budget.currency)}</span>
+          <span className="text-[22px] font-semibold tracking-tight tnum">{formatMoney(spent)}</span>
+          <span className="text-xs text-gray-500 dark:text-gray-400 tnum">из {formatMoney(limit)}</span>
         </div>
         <div className="relative h-2 rounded-full bg-gray-200 dark:bg-[#262A3A] overflow-hidden">
           {/* Tailwind class on the fill — required by B-17/B-18 selectors. */}
@@ -316,7 +316,7 @@ function BudgetCard({
         <div className="flex justify-between mt-2 text-xs tnum">
           <span className="font-medium" style={{ color }}>{pct}% использовано</span>
           <span className="text-gray-500 dark:text-gray-400">
-            {remaining >= 0 ? `Остаток ${formatMoney(remaining, budget.currency)}` : 'Лимит превышен'}
+            {remaining >= 0 ? `Остаток ${formatMoney(remaining)}` : 'Лимит превышен'}
           </span>
         </div>
       </div>
@@ -332,7 +332,7 @@ function BudgetCard({
           <div
             className={cn('text-sm font-medium tnum', projected > limit ? 'text-expense' : 'text-gray-900 dark:text-gray-100')}
           >
-            {formatMoney(projected, budget.currency)}
+            {formatMoney(projected)}
           </div>
         </div>
       </div>

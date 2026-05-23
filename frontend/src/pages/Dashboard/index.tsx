@@ -164,7 +164,7 @@ function AccountCard({ acc }: { acc: Account }) {
       </div>
       <div className="text-[13px] opacity-85 mb-0.5 truncate">{acc.name}</div>
       <div className="text-[20px] font-semibold tracking-tight tnum">
-        {formatMoney(acc.balance, acc.currency)}
+        {formatMoney(acc.balance)}
       </div>
     </Link>
   );
@@ -262,7 +262,7 @@ function TransactionRow({ tx }: { tx: Transaction }) {
           className="font-semibold tnum"
           style={{ color: isIn ? INCOME : undefined }}
         >
-          {isIn ? '+' : '−'}{formatMoney(tx.amount, tx.currency)}
+          {isIn ? '+' : '−'}{formatMoney(tx.amount)}
         </span>
       </td>
     </tr>
@@ -292,8 +292,8 @@ function BudgetCard({ b }: { b: Budget }) {
       </div>
       <div>
         <div className="flex items-baseline justify-between mb-1.5">
-          <span className="text-lg font-semibold tracking-tight tnum">{formatMoney(spent, b.currency)}</span>
-          <span className="text-xs text-gray-500 dark:text-gray-400 tnum">из {formatMoney(amount, b.currency)}</span>
+          <span className="text-lg font-semibold tracking-tight tnum">{formatMoney(spent)}</span>
+          <span className="text-xs text-gray-500 dark:text-gray-400 tnum">из {formatMoney(amount)}</span>
         </div>
         <div className="h-1.5 rounded-full bg-gray-200 dark:bg-[#262A3A] overflow-hidden">
           <div
@@ -304,9 +304,9 @@ function BudgetCard({ b }: { b: Budget }) {
       </div>
       <div className="text-xs text-gray-500 dark:text-gray-400 tnum">
         {remaining >= 0 ? (
-          <>Осталось <span className="font-medium text-gray-900 dark:text-gray-100">{formatMoney(remaining, b.currency)}</span></>
+          <>Осталось <span className="font-medium text-gray-900 dark:text-gray-100">{formatMoney(remaining)}</span></>
         ) : (
-          <>Превышение <span className="font-medium" style={{ color: EXPENSE }}>{formatMoney(-remaining, b.currency)}</span></>
+          <>Превышение <span className="font-medium" style={{ color: EXPENSE }}>{formatMoney(-remaining)}</span></>
         )}
       </div>
     </div>

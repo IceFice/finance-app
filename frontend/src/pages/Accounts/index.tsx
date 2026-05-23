@@ -224,7 +224,7 @@ function BigAccountCard({
         </div>
         <div className="relative text-[11px] opacity-75">Доступно</div>
         <div className="relative text-2xl font-semibold tracking-[-0.02em] tabular-nums">
-          {hide ? '••••••' : formatMoney(acc.balance, acc.currency)}
+          {hide ? '••••••' : formatMoney(acc.balance)}
         </div>
       </div>
 
@@ -235,12 +235,12 @@ function BigAccountCard({
           <div className="flex items-center gap-2.5 tabular-nums">
             {stats.inSum > 0 && (
               <span className="text-[13px] font-medium" style={{ color: INCOME }}>
-                +{compactMoney(stats.inSum, acc.currency)}
+                +{compactMoney(stats.inSum)}
               </span>
             )}
             {stats.outSum > 0 && (
               <span className="text-[13px] font-medium" style={{ color: EXPENSE }}>
-                −{compactMoney(stats.outSum, acc.currency)}
+                −{compactMoney(stats.outSum)}
               </span>
             )}
             {stats.txCount === 0 && (
@@ -342,7 +342,7 @@ function AccountSelect({
         <div className="min-w-0 flex-1">
           <div className="text-[13px] font-medium truncate">{acc.name}</div>
           <div className="text-[11px] text-gray-500 dark:text-gray-400 tabular-nums">
-            {hide ? '••••••' : formatMoney(acc.balance, acc.currency)}
+            {hide ? '••••••' : formatMoney(acc.balance)}
           </div>
         </div>
         <span className="text-gray-400"><IconChevDn /></span>
@@ -372,7 +372,7 @@ function AccountSelect({
                 </span>
                 <span className="text-[13px] font-medium flex-1 min-w-0 truncate">{a.name}</span>
                 <span className="text-xs text-gray-500 dark:text-gray-400 tabular-nums">
-                  {hide ? '••••' : compactMoney(Number(a.balance), a.currency)}
+                  {hide ? '••••' : compactMoney(Number(a.balance))}
                 </span>
               </button>
             </li>
@@ -750,7 +750,7 @@ export default function AccountsPage() {
                 className="text-[30px] font-semibold tracking-[-0.02em] tabular-nums"
                 style={{ color: Number(selected.balance) < 0 ? EXPENSE : undefined }}
               >
-                {hide ? '••••••' : formatMoney(selected.balance, selected.currency)}
+                {hide ? '••••••' : formatMoney(selected.balance)}
               </div>
               <div className="mt-3">
                 <Sparkline color={selected.color || ACCENT} points={selStats.points} w={320} h={56} />
@@ -761,13 +761,13 @@ export default function AccountsPage() {
               <div className="px-5 py-3.5">
                 <div className="text-[11px] text-gray-500 dark:text-gray-400 mb-1">Поступило</div>
                 <div className="text-base font-semibold tabular-nums" style={{ color: INCOME }}>
-                  {hide ? '••••' : `+${formatMoney(selStats.inSum, selected.currency)}`}
+                  {hide ? '••••' : `+${formatMoney(selStats.inSum)}`}
                 </div>
               </div>
               <div className="px-5 py-3.5 border-l border-gray-200 dark:border-[#262A3A]">
                 <div className="text-[11px] text-gray-500 dark:text-gray-400 mb-1">Списано</div>
                 <div className="text-base font-semibold tabular-nums" style={{ color: EXPENSE }}>
-                  {hide ? '••••' : `−${formatMoney(selStats.outSum, selected.currency)}`}
+                  {hide ? '••••' : `−${formatMoney(selStats.outSum)}`}
                 </div>
               </div>
             </div>
@@ -803,7 +803,7 @@ export default function AccountsPage() {
                           className="text-[13px] font-semibold tabular-nums whitespace-nowrap"
                           style={{ color: isIn ? INCOME : isTransfer ? ACCENT : undefined }}
                         >
-                          {hide ? '•••' : `${isIn ? '+' : isTransfer ? '' : '−'}${compactMoney(Number(tx.amount), tx.currency)}`}
+                          {hide ? '•••' : `${isIn ? '+' : isTransfer ? '' : '−'}${compactMoney(Number(tx.amount))}`}
                         </div>
                       </li>
                     );
@@ -884,7 +884,7 @@ export default function AccountsPage() {
                 className="flex-1 min-w-0 border-0 outline-none bg-transparent text-gray-900 dark:text-gray-100 text-[22px] font-semibold tabular-nums"
               />
               <span className="text-gray-500 dark:text-gray-400 text-base font-medium">
-                {accounts.find(a => a.id === xferFrom)?.currency || 'RUB'}
+                ₽
               </span>
             </div>
           </label>
