@@ -19,6 +19,7 @@ const ReportsPage      = lazy(() => import('@/pages/Reports'));
 const CategoriesPage   = lazy(() => import('@/pages/Categories'));
 const SettingsPage     = lazy(() => import('@/pages/Settings'));
 const ImportPage       = lazy(() => import('@/pages/Import'));
+const GoalsPage        = lazy(() => import('@/pages/Goals'));
 
 function PageFallback() {
   return (
@@ -123,6 +124,9 @@ function AppRoutes() {
               } />
               <Route path="/import" element={
                 <ErrorBoundary><Suspense fallback={<PageFallback />}><ImportPage /></Suspense></ErrorBoundary>
+              } />
+              <Route path="/goals" element={
+                <ErrorBoundary><Suspense fallback={<PageFallback />}><GoalsPage /></Suspense></ErrorBoundary>
               } />
             </Route>
 

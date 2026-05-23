@@ -4,7 +4,7 @@ import { useUIStore } from '@/store/uiStore';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import {
-  IconHome, IconWallet, IconList, IconTarget, IconChart, IconTags,
+  IconHome, IconWallet, IconList, IconTarget, IconChart, IconTags, IconGoal,
   IconSun, IconMoon, IconLogout, IconMenu, IconBell,
 } from './NavIcons';
 import { SavingsMini } from './SavingsMini';
@@ -17,6 +17,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/accounts',     label: 'Счета',      Icon: IconWallet },
   { to: '/transactions', label: 'Операции',   Icon: IconList   },
   { to: '/budgets',      label: 'Бюджеты',    Icon: IconTarget },
+  { to: '/goals',        label: 'Цели',       Icon: IconGoal   },
   { to: '/reports',      label: 'Отчёты',     Icon: IconChart  },
   { to: '/categories',   label: 'Категории',  Icon: IconTags   },
 ];
