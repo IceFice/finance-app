@@ -33,9 +33,13 @@ test('T-25: create expense transaction via UI → appears in list', async ({ pag
 
   // Строка появилась
   await expect(txPage.transactionRows).toHaveCount(countBefore + 1, { timeout: 5_000 });
-  await expect(page.getByText('Тест покупка')).toBeVisible();
-  // Сумма отображается как строка с форматированием
-  await expect(page.getByText(/1.500|1500/)).toBeVisible();
+  // Описание + сумма — оба видимы ВНУТРИ свежесозданной строки. Раньше тест
+  // искал «1 500» по всей странице, но после унификации валют (всё в ₽)
+  // та же сумма дублируется в stat-strip (Расходы / Средний чек) — strict
+  // locator падает на нескольких совпадениях. Скоупим в саму строку.
+  const newRow = txPage.transactionRows.filter({ hasText: 'Тест покупка' });
+  await expect(newRow).toBeVisible();
+  await expect(newRow.getByText(/1.500|1500/)).toBeVisible();
 });
 
 // ── T-26: E2E редактировать транзакцию ───────────────────────────────────────
