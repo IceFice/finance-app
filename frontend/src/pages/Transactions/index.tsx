@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { useTransactions, useDeleteTransaction, useCreateTransaction, useUpdateTransaction, Transaction } from '../../hooks/useTransactions';
 import { useAccounts } from '../../hooks/useAccounts';
 import { useCategories } from '../../hooks/useReports';
@@ -639,14 +640,22 @@ export default function TransactionsPage() {
           <div className="text-[13px] text-gray-500 dark:text-gray-400 mb-1">Все операции в одном месте</div>
           <h1 className="m-0 text-2xl md:text-[28px] font-semibold tracking-tight">Операции</h1>
         </div>
-        <Button
-          variant="primary"
-          onClick={() => setShowAdd(true)}
-          className="h-10 px-4 rounded-xl"
-          style={{ boxShadow: '0 6px 16px -8px #6366F1' }}
-        >
-          + Добавить операцию
-        </Button>
+        <div className="flex items-center gap-2">
+          <Link
+            to="/import"
+            className="inline-flex items-center gap-1.5 h-10 px-4 rounded-xl border border-gray-200 dark:border-[#262A3A] bg-white dark:bg-[#181B26] text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/[0.04] transition-colors"
+          >
+            <span aria-hidden="true">📥</span> Импорт CSV
+          </Link>
+          <Button
+            variant="primary"
+            onClick={() => setShowAdd(true)}
+            className="h-10 px-4 rounded-xl"
+            style={{ boxShadow: '0 6px 16px -8px #6366F1' }}
+          >
+            + Добавить операцию
+          </Button>
+        </div>
       </div>
 
       {/* ── Stat strip ── */}

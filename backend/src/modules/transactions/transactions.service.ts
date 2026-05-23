@@ -2,7 +2,10 @@ import type { PoolClient } from 'pg';
 import { userQuery, withUserContext } from '../../db/context';
 import { encodeCursor, decodeCursor } from '../../lib/cursor';
 import { NotFoundError, DomainError } from '../../lib/errors';
-import type { CreateTransactionInput, UpdateTransactionInput, CreateTransferInput, ListQuery } from './transactions.schema';
+import type {
+  CreateTransactionInput, UpdateTransactionInput, CreateTransferInput, ListQuery,
+  ImportBulkInput, ImportRowInput,
+} from './transactions.schema';
 
 interface TransactionRow {
   id: string; user_id: string; account_id: string; category_id: string | null;
@@ -178,6 +181,82 @@ export async function softDelete(userId: string, transactionId: string) {
     [transactionId, userId]
   );
   if (res.rowCount === 0) throw new NotFoundError('Transaction');
+}
+
+// ── Bulk import ──────────────────────────────────────────────────────────────
+// Inserts a batch of rows under one transaction; deduplicates against existing
+// rows on (account_id, date, amount, type, merchant) when `dedupe` is on.
+// Returns a per-row outcome so the client can show "inserted/skipped/errors".
+//
+// All rows run inside a single withUserContext so the RLS session variable is
+// set once. Row-level errors don't abort the batch — they're surfaced in the
+// return value instead.
+export async function importBulk(
+  userId: string,
+  input: ImportBulkInput,
+): Promise<{ inserted: number; skipped: number; errors: Array<{ index: number; message: string }> }> {
+  return withUserContext(userId, async (db) => {
+    // Pre-validate ownership of all referenced accounts/categories once so
+    // we don't hammer the DB row-by-row for the same id.
+    const accountIds = Array.from(new Set(input.rows.map(r => r.accountId)));
+    const categoryIds = Array.from(new Set(input.rows.map(r => r.categoryId).filter((x): x is string => !!x)));
+    if (accountIds.length > 0) {
+      const r = await db.query<{ id: string }>(
+        `SELECT id FROM accounts WHERE id = ANY($1::uuid[]) AND deleted_at IS NULL`,
+        [accountIds],
+      );
+      const valid = new Set(r.rows.map(x => x.id));
+      const missing = accountIds.filter(id => !valid.has(id));
+      if (missing.length > 0) throw new NotFoundError(`Account(s): ${missing.join(', ')}`);
+    }
+    if (categoryIds.length > 0) {
+      const r = await db.query<{ id: string }>(
+        `SELECT id FROM categories WHERE id = ANY($1::uuid[])`,
+        [categoryIds],
+      );
+      const valid = new Set(r.rows.map(x => x.id));
+      const missing = categoryIds.filter(id => !valid.has(id));
+      if (missing.length > 0) throw new NotFoundError(`Category(ies): ${missing.join(', ')}`);
+    }
+
+    let inserted = 0;
+    let skipped = 0;
+    const errors: Array<{ index: number; message: string }> = [];
+
+    for (let i = 0; i < input.rows.length; i++) {
+      const row: ImportRowInput = input.rows[i];
+      try {
+        if (input.dedupe) {
+          // Same account, same date, same amount, same type, same merchant
+          // (NULL-safe). Match within the soft-delete-aware live set.
+          const dup = await db.query<{ id: string }>(
+            `SELECT id FROM transactions
+             WHERE user_id = $1 AND account_id = $2 AND date = $3
+               AND amount = $4 AND type = $5
+               AND merchant IS NOT DISTINCT FROM $6
+               AND deleted_at IS NULL
+             LIMIT 1`,
+            [userId, row.accountId, row.date, row.amount, row.type, row.merchant ?? null],
+          );
+          if (dup.rowCount && dup.rowCount > 0) { skipped++; continue; }
+        }
+        await db.query(
+          `INSERT INTO transactions
+           (user_id, account_id, category_id, amount, currency, exchange_rate, type, description, merchant, date, notes)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+          [userId, row.accountId, row.categoryId ?? null, row.amount, row.currency,
+           row.exchangeRate, row.type, row.description ?? null, row.merchant ?? null,
+           row.date, row.notes ?? null],
+        );
+        inserted++;
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : 'Unknown error';
+        errors.push({ index: i, message: msg });
+      }
+    }
+
+    return { inserted, skipped, errors };
+  });
 }
 
 export async function createTransfer(userId: string, input: CreateTransferInput) {

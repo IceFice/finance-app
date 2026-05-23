@@ -93,6 +93,30 @@ export function useCreateTransfer() {
   });
 }
 
+export interface ImportRow {
+  accountId: string;
+  categoryId?: string | null;
+  amount: string;
+  type: 'debit' | 'credit';
+  date: string;
+  merchant?: string;
+  description?: string;
+  notes?: string;
+}
+export interface ImportResult { inserted: number; skipped: number; errors: Array<{ index: number; message: string }> }
+export function useImportTransactions() {
+  const qc = useQueryClient();
+  return useMutation<ImportResult, unknown, { rows: ImportRow[]; dedupe?: boolean }>({
+    mutationFn: async ({ rows, dedupe = true }) =>
+      (await api.post('/transactions/import', { rows, dedupe })).data.data,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['transactions'] });
+      void qc.invalidateQueries({ queryKey: ['accounts'] });
+      void qc.invalidateQueries({ queryKey: ['reports'] });
+    },
+  });
+}
+
 export function useUpdateTransaction() {
   const qc = useQueryClient();
   return useMutation({

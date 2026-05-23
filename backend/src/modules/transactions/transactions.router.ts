@@ -4,7 +4,10 @@ import { sendSuccess, sendPaginated } from '../../lib/response';
 import { authenticate } from '../../middleware/authenticate';
 import { generalLimiter } from '../../middleware/rateLimiter';
 import * as txService from './transactions.service';
-import { createTransactionSchema, updateTransactionSchema, createTransferSchema, listQuerySchema } from './transactions.schema';
+import {
+  createTransactionSchema, updateTransactionSchema, createTransferSchema, listQuerySchema,
+  importBulkSchema,
+} from './transactions.schema';
 
 export const transactionsRouter = Router();
 transactionsRouter.use(authenticate, generalLimiter);
@@ -38,4 +41,12 @@ transactionsRouter.delete('/:id', asyncHandler(async (req: Request, res: Respons
 transactionsRouter.post('/transfer', asyncHandler(async (req: Request, res: Response) => {
   const input = createTransferSchema.parse(req.body);
   sendSuccess(res, await txService.createTransfer(req.userId, input), 201);
+}));
+
+// Bulk import — accepts up to 2000 validated rows in one request and returns
+// {inserted, skipped, errors}. Dedupes by default on
+// (account, date, amount, type, merchant).
+transactionsRouter.post('/import', asyncHandler(async (req: Request, res: Response) => {
+  const input = importBulkSchema.parse(req.body);
+  sendSuccess(res, await txService.importBulk(req.userId, input), 201);
 }));
