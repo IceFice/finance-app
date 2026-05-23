@@ -29,8 +29,6 @@ const INCOME = '#22C55E';
 const EXPENSE = '#EF4444';
 const ACCENT = '#6366F1';
 const SAVINGS_GOAL = 80000;
-// Demo FX rates for ₽-equivalent totals; matches design source.
-const FX_TO_RUB: Record<string, number> = { RUB: 1, USD: 92, EUR: 100 };
 
 const ACCOUNT_TYPES = [
   { value: 'checking',    label: 'Текущий счёт' },
@@ -81,9 +79,6 @@ function shortDate(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
   return `${d.getDate()} ${MONTHS[d.getMonth()]}`;
-}
-function rubEquivalent(balance: string, currency: string): number {
-  return Number(balance) * (FX_TO_RUB[currency] ?? 1);
 }
 // Deterministic synthetic balance sparkline so the visual is stable across
 // renders without persisting historical balances yet.
@@ -429,8 +424,6 @@ function AccountForm({
           <label htmlFor="acc-currency" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Валюта</label>
           <select id="acc-currency" {...register('currency')} className={inputCls}>
             <option value="RUB">RUB ₽</option>
-            <option value="USD">USD $</option>
-            <option value="EUR">EUR €</option>
           </select>
         </div>
       </div>
@@ -511,22 +504,20 @@ export default function AccountsPage() {
     return map;
   }, [accounts, transactions]);
 
-  // Stat strip aggregates
-  const totalRub = accounts.reduce((s, a) => s + rubEquivalent(a.balance, a.currency), 0);
-  const totalForeign = accounts.filter(a => a.currency !== 'RUB')
-    .reduce((s, a) => s + rubEquivalent(a.balance, a.currency), 0);
-  const totalSavings = Number(sumMoney(accounts.filter(a => a.type === 'savings' && a.currency === 'RUB').map(a => a.balance)));
-  const monthIn  = transactions.filter(t => t.type === 'credit' && t.currency === 'RUB')
+  // Stat strip aggregates (RUB-only — currency is fixed across the product)
+  const totalRub = Number(sumMoney(accounts.map(a => a.balance)));
+  const totalSavings = Number(sumMoney(accounts.filter(a => a.type === 'savings').map(a => a.balance)));
+  const monthIn  = transactions.filter(t => t.type === 'credit')
     .reduce((s, t) => s + Number(t.amount), 0);
-  const monthOut = transactions.filter(t => t.type === 'debit' && t.currency === 'RUB')
+  const monthOut = transactions.filter(t => t.type === 'debit')
     .reduce((s, t) => s + Number(t.amount), 0);
   const monthNet = monthIn - monthOut;
 
-  // Allocation by type
+  // Allocation by account type — sums balances per type and computes share
   const byType: TypeSlice[] = useMemo(() => {
     const m = new Map<string, { total: number; color: string }>();
     for (const a of accounts) {
-      const val = rubEquivalent(a.balance, a.currency);
+      const val = Number(a.balance);
       const cur = m.get(a.type) ?? { total: 0, color: a.color || '#9CA3AF' };
       m.set(a.type, { total: cur.total + val, color: cur.color });
     }
@@ -639,8 +630,6 @@ export default function AccountsPage() {
     );
   }
 
-  const foreignAccounts = accounts.filter(a => a.currency !== 'RUB');
-
   return (
     <div className="p-5 sm:p-7 lg:p-9 space-y-5 pb-16">
       {/* Header */}
@@ -668,14 +657,14 @@ export default function AccountsPage() {
       {/* Stat strip */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="Общий баланс"
-          value={hide ? '••••••' : compactMoney(Math.round(totalRub))}
-          sub={`${accounts.length} счетов · ${foreignAccounts.length} в валюте`}
+          value={hide ? '••••••' : formatMoney(totalRub)}
+          sub={`${accounts.length} ${accounts.length === 1 ? 'счёт' : accounts.length < 5 ? 'счёта' : 'счетов'} · ${byType.length} ${byType.length === 1 ? 'тип' : byType.length < 5 ? 'типа' : 'типов'}`}
           tintClass="bg-[#EEF0FF] dark:bg-[#1A2230]"
           accent={ACCENT} icon={<IconWallet />}
           spark={{ color: ACCENT, points: syntheticPoints('total', totalRub || 1) }} />
-        <StatCard label="В иностранной валюте"
-          value={hide ? '••••••' : compactMoney(Math.round(totalForeign))}
-          sub={foreignAccounts.map(a => formatMoney(a.balance, a.currency)).join(' · ') || 'нет валютных счетов'}
+        <StatCard label="Доходы за месяц"
+          value={hide ? '••••••' : `+${formatMoney(monthIn)}`}
+          sub={`${transactions.filter(t => t.type === 'credit').length} операций`}
           tintClass="bg-[#E8F7EE] dark:bg-[#142421]"
           accent={INCOME} icon={<IconArrDown />} />
         <StatCard label="Накопления"

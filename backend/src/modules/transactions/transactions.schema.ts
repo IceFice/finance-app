@@ -4,7 +4,7 @@ export const createTransactionSchema = z.object({
   accountId: z.string().uuid(),
   categoryId: z.string().uuid().nullable().optional(),
   amount: z.string().regex(/^\d+(\.\d{1,2})?$/),
-  currency: z.string().length(3).default('USD'),
+  currency: z.string().length(3).default('RUB'),
   exchangeRate: z.string().regex(/^\d+(\.\d{1,6})?$/).default('1.000000'),
   type: z.enum(['debit', 'credit', 'transfer']),
   description: z.string().max(500).optional(),
@@ -19,7 +19,7 @@ export const createTransferSchema = z.object({
   fromAccountId: z.string().uuid(),
   toAccountId: z.string().uuid(),
   amount: z.string().regex(/^\d+(\.\d{1,2})?$/),
-  currency: z.string().length(3).default('USD'),
+  currency: z.string().length(3).default('RUB'),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   description: z.string().max(500).optional(),
 });

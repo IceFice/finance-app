@@ -393,22 +393,13 @@ function BudgetForm({
         </select>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label htmlFor="budget-amount" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Лимит</label>
-          <input id="budget-amount" {...register('amount')} type="number" step="0.01" min="0" placeholder="0.00"
-            className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" />
-          {errors.amount && <p className="mt-1 text-xs text-red-500">{errors.amount.message}</p>}
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Валюта</label>
-          <select {...register('currency')}
-            className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
-            <option value="RUB">RUB</option>
-            <option value="USD">USD</option>
-            <option value="EUR">EUR</option>
-          </select>
-        </div>
+      <div>
+        <label htmlFor="budget-amount" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Лимит, ₽</label>
+        <input id="budget-amount" {...register('amount')} type="number" step="0.01" min="0" placeholder="0.00"
+          className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" />
+        {errors.amount && <p className="mt-1 text-xs text-red-500">{errors.amount.message}</p>}
+        {/* `currency` is fixed to RUB — hidden field keeps form payload stable */}
+        <input type="hidden" {...register('currency')} value="RUB" />
       </div>
 
       <div>
