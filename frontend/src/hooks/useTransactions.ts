@@ -96,7 +96,7 @@ export function useCreateTransfer() {
 export function useUpdateTransaction() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...data }: { id: string; description?: string; merchant?: string }) =>
+    mutationFn: ({ id, ...data }: { id: string; description?: string; merchant?: string; notes?: string }) =>
       api.patch(`/transactions/${id}`, data),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['transactions'] });

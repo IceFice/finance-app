@@ -24,6 +24,7 @@ const addSchema = z.object({
     .refine((v) => parseFloat(v) > 0, 'Сумма должна быть больше нуля'),
   description: z.string().max(1000, 'Максимум 1000 символов').optional(),
   merchant: z.string().max(255).optional(),
+  notes: z.string().max(1000, 'Максимум 1000 символов').optional(),
   date: z.string().min(1, 'Укажите дату'),
 });
 
@@ -64,6 +65,7 @@ function AddForm({ accounts, categories, onClose }: {
       amount: data.amount,
       description: data.description,
       merchant: data.merchant,
+      notes: data.notes || undefined,
       date: data.date,
     });
     onClose();
@@ -187,6 +189,22 @@ function AddForm({ accounts, categories, onClose }: {
         )}
       </div>
 
+      <div>
+        <label htmlFor="add-notes" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          Заметка <span className="text-gray-400 text-xs font-normal">— только для себя</span>
+        </label>
+        <textarea
+          id="add-notes"
+          {...register('notes')}
+          rows={2}
+          placeholder="Например: Чек №42, вернуть половину Маше"
+          className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none"
+        />
+        {errors.notes && (
+          <p className="mt-1 text-xs text-red-500">{errors.notes.message}</p>
+        )}
+      </div>
+
       <div className="flex gap-3 pt-2">
         <Button type="button" variant="secondary" className="flex-1" onClick={onClose}>
           Отмена
@@ -202,6 +220,7 @@ function AddForm({ accounts, categories, onClose }: {
 const editSchema = z.object({
   description: z.string().max(1000, 'Максимум 1000 символов').optional(),
   merchant: z.string().max(255).optional(),
+  notes: z.string().max(1000, 'Максимум 1000 символов').optional(),
 });
 type EditFormData = z.infer<typeof editSchema>;
 
@@ -212,11 +231,20 @@ function TransactionDetail({ tx, onClose }: { tx: Transaction; onClose: () => vo
 
   const { register, handleSubmit, formState: { errors } } = useForm<EditFormData>({
     resolver: zodResolver(editSchema),
-    defaultValues: { description: tx.description ?? '', merchant: tx.merchant ?? '' },
+    defaultValues: {
+      description: tx.description ?? '',
+      merchant: tx.merchant ?? '',
+      notes: tx.notes ?? '',
+    },
   });
 
   const onSubmit = async (data: EditFormData) => {
-    await updateMutation.mutateAsync({ id: tx.id, ...data });
+    await updateMutation.mutateAsync({
+      id: tx.id,
+      description: data.description,
+      merchant: data.merchant,
+      notes: data.notes || undefined,
+    });
     onClose();
   };
 
@@ -266,6 +294,22 @@ function TransactionDetail({ tx, onClose }: { tx: Transaction; onClose: () => vo
         />
         {errors.description && (
           <p className="mt-1 text-xs text-red-500">{errors.description.message}</p>
+        )}
+      </div>
+
+      <div>
+        <label htmlFor="edit-notes" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          Заметка <span className="text-gray-400 text-xs font-normal">— только для себя</span>
+        </label>
+        <textarea
+          id="edit-notes"
+          {...register('notes')}
+          rows={3}
+          placeholder="Дополнительные детали"
+          className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none"
+        />
+        {errors.notes && (
+          <p className="mt-1 text-xs text-red-500">{errors.notes.message}</p>
         )}
       </div>
 

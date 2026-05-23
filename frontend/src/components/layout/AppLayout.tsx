@@ -4,7 +4,7 @@ import { useUIStore } from '@/store/uiStore';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import {
-  IconHome, IconWallet, IconList, IconTarget, IconChart,
+  IconHome, IconWallet, IconList, IconTarget, IconChart, IconTags,
   IconSun, IconMoon, IconLogout, IconMenu, IconBell,
 } from './NavIcons';
 import { SavingsMini } from './SavingsMini';
@@ -13,11 +13,12 @@ type IconCmp = ComponentType<SVGProps<SVGSVGElement>>;
 interface NavItem { to: string; label: string; Icon: IconCmp; }
 
 const NAV_ITEMS: NavItem[] = [
-  { to: '/dashboard',    label: 'Главная',  Icon: IconHome   },
-  { to: '/accounts',     label: 'Счета',    Icon: IconWallet },
-  { to: '/transactions', label: 'Операции', Icon: IconList   },
-  { to: '/budgets',      label: 'Бюджеты',  Icon: IconTarget },
-  { to: '/reports',      label: 'Отчёты',   Icon: IconChart  },
+  { to: '/dashboard',    label: 'Главная',    Icon: IconHome   },
+  { to: '/accounts',     label: 'Счета',      Icon: IconWallet },
+  { to: '/transactions', label: 'Операции',   Icon: IconList   },
+  { to: '/budgets',      label: 'Бюджеты',    Icon: IconTarget },
+  { to: '/reports',      label: 'Отчёты',     Icon: IconChart  },
+  { to: '/categories',   label: 'Категории',  Icon: IconTags   },
 ];
 
 // ── Logo with a brand ₽ pill — used across header & landing ───────────────
@@ -106,9 +107,11 @@ function UserPill({ name }: { name: string }) {
   // user.fullName via `getByText` keep working. CSS truncates visually,
   // but the text node stays whole in the DOM (and `title` exposes it on hover).
   return (
-    <div
-      className="hidden sm:flex items-center gap-2.5 pl-1 pr-3 py-1 bg-white dark:bg-[#181B26] border border-gray-200 dark:border-[#262A3A] rounded-full max-w-[260px]"
-      title={name}
+    <NavLink
+      to="/settings"
+      className="hidden sm:flex items-center gap-2.5 pl-1 pr-3 py-1 bg-white dark:bg-[#181B26] border border-gray-200 dark:border-[#262A3A] rounded-full max-w-[260px] hover:border-brand-300 dark:hover:border-brand-700 transition-colors"
+      title={`${name} — открыть настройки`}
+      aria-label="Открыть настройки"
     >
       <span
         className="w-8 h-8 rounded-full grid place-items-center text-[13px] font-semibold text-white flex-shrink-0"
@@ -120,7 +123,7 @@ function UserPill({ name }: { name: string }) {
       <span className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate">
         {name}
       </span>
-    </div>
+    </NavLink>
   );
 }
 

@@ -16,6 +16,8 @@ const TransactionsPage = lazy(() => import('@/pages/Transactions'));
 const AccountsPage     = lazy(() => import('@/pages/Accounts'));
 const BudgetsPage      = lazy(() => import('@/pages/Budgets'));
 const ReportsPage      = lazy(() => import('@/pages/Reports'));
+const CategoriesPage   = lazy(() => import('@/pages/Categories'));
+const SettingsPage     = lazy(() => import('@/pages/Settings'));
 
 function PageFallback() {
   return (
@@ -111,6 +113,12 @@ function AppRoutes() {
               } />
               <Route path="/reports" element={
                 <ErrorBoundary><Suspense fallback={<PageFallback />}><ReportsPage /></Suspense></ErrorBoundary>
+              } />
+              <Route path="/categories" element={
+                <ErrorBoundary><Suspense fallback={<PageFallback />}><CategoriesPage /></Suspense></ErrorBoundary>
+              } />
+              <Route path="/settings" element={
+                <ErrorBoundary><Suspense fallback={<PageFallback />}><SettingsPage /></Suspense></ErrorBoundary>
               } />
             </Route>
 
