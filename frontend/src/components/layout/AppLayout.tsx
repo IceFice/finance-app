@@ -5,8 +5,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import {
   IconHome, IconWallet, IconList, IconTarget, IconChart,
-  IconSun, IconMoon, IconLogout, IconMenu,
+  IconSun, IconMoon, IconLogout, IconMenu, IconBell,
 } from './NavIcons';
+import { SavingsMini } from './SavingsMini';
 
 type IconCmp = ComponentType<SVGProps<SVGSVGElement>>;
 interface NavItem { to: string; label: string; Icon: IconCmp; }
@@ -92,6 +93,38 @@ function SidebarBtn({
   );
 }
 
+// ── User pill in topbar — gradient avatar with initials + short name ──────
+function initialsOf(name: string): string {
+  const s = (name || '').trim();
+  if (!s) return '?';
+  const parts = s.split(/[\s.@_-]+/).filter(Boolean);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return s.slice(0, 2).toUpperCase();
+}
+function shortName(name: string): string {
+  const s = (name || '').trim();
+  if (!s) return '';
+  // If it's an email, take the part before @ (truncated). Otherwise first word.
+  if (s.includes('@')) return s.split('@')[0].slice(0, 12);
+  return s.split(/\s+/)[0].slice(0, 14);
+}
+function UserPill({ name }: { name: string }) {
+  return (
+    <div className="hidden sm:flex items-center gap-2.5 pl-1 pr-3 py-1 bg-white dark:bg-[#181B26] border border-gray-200 dark:border-[#262A3A] rounded-full">
+      <span
+        className="w-8 h-8 rounded-full grid place-items-center text-[13px] font-semibold text-white"
+        style={{ background: 'linear-gradient(135deg, #6366F1, #4338CA)' }}
+        aria-hidden="true"
+      >
+        {initialsOf(name)}
+      </span>
+      <span className="text-sm font-medium text-gray-800 dark:text-gray-100">
+        {shortName(name)}
+      </span>
+    </div>
+  );
+}
+
 export default function AppLayout({ children }: { children: ReactNode }) {
   const { sidebarOpen, toggleSidebar, theme, toggleTheme } = useUIStore();
   const { user, logout } = useAuth();
@@ -125,6 +158,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         </nav>
 
         <div className="mt-auto pb-4 pt-3 border-t border-white/[0.05] flex flex-col gap-1">
+          {/* Sidebar savings widget — universal "Копилка" pill (v3) */}
+          <SavingsMini collapsed={collapsed} />
           <SidebarBtn
             Icon={theme === 'dark' ? IconSun : IconMoon}
             label={theme === 'dark' ? 'Светлая тема' : 'Тёмная тема'}
@@ -154,9 +189,23 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             <span>Бабкосчёт</span>
           </div>
           <div className="flex-1" />
-          <span className="text-sm text-gray-500 dark:text-gray-400 hidden sm:block">
-            {user?.fullName ?? user?.email}
-          </span>
+
+          {/* Bell — notification dot in brand colour, v3 style */}
+          <button
+            type="button"
+            aria-label="Уведомления"
+            className="relative w-10 h-10 rounded-xl bg-white dark:bg-[#181B26] border border-gray-200 dark:border-[#262A3A] grid place-items-center text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/[0.04]"
+          >
+            <IconBell />
+            <span
+              aria-hidden="true"
+              className="absolute top-2 right-2.5 w-2 h-2 rounded-full bg-brand-600"
+              style={{ boxShadow: '0 0 0 2px #fff' }}
+            />
+          </button>
+
+          {/* User pill — gradient avatar + name (initials fallback). */}
+          <UserPill name={user?.fullName ?? user?.email ?? ''} />
         </header>
 
         {/* Page content */}

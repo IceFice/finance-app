@@ -36,3 +36,4 @@ export const IconLogout = (p: SVGProps<SVGSVGElement>) => <I {...p}><path d="M15
 export const IconMenu   = (p: SVGProps<SVGSVGElement>) => <I {...p}><path d="M4 6h16M4 12h16M4 18h16" /></I>;
 export const IconChevL  = (p: SVGProps<SVGSVGElement>) => <I {...p}><path d="M15 6l-6 6 6 6" /></I>;
 export const IconChevR  = (p: SVGProps<SVGSVGElement>) => <I {...p}><path d="M9 6l6 6-6 6" /></I>;
+export const IconPlus   = (p: SVGProps<SVGSVGElement>) => <I {...p}><path d="M12 5v14M5 12h14" /></I>;
