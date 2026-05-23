@@ -93,7 +93,7 @@ function SidebarBtn({
   );
 }
 
-// ── User pill in topbar — gradient avatar with initials + short name ──────
+// ── User pill in topbar — gradient avatar with initials + full name ──────
 function initialsOf(name: string): string {
   const s = (name || '').trim();
   if (!s) return '?';
@@ -101,25 +101,24 @@ function initialsOf(name: string): string {
   if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
   return s.slice(0, 2).toUpperCase();
 }
-function shortName(name: string): string {
-  const s = (name || '').trim();
-  if (!s) return '';
-  // If it's an email, take the part before @ (truncated). Otherwise first word.
-  if (s.includes('@')) return s.split('@')[0].slice(0, 12);
-  return s.split(/\s+/)[0].slice(0, 14);
-}
 function UserPill({ name }: { name: string }) {
+  // Render the *full* name so screen readers + E2E selectors that look up
+  // user.fullName via `getByText` keep working. CSS truncates visually,
+  // but the text node stays whole in the DOM (and `title` exposes it on hover).
   return (
-    <div className="hidden sm:flex items-center gap-2.5 pl-1 pr-3 py-1 bg-white dark:bg-[#181B26] border border-gray-200 dark:border-[#262A3A] rounded-full">
+    <div
+      className="hidden sm:flex items-center gap-2.5 pl-1 pr-3 py-1 bg-white dark:bg-[#181B26] border border-gray-200 dark:border-[#262A3A] rounded-full max-w-[260px]"
+      title={name}
+    >
       <span
-        className="w-8 h-8 rounded-full grid place-items-center text-[13px] font-semibold text-white"
+        className="w-8 h-8 rounded-full grid place-items-center text-[13px] font-semibold text-white flex-shrink-0"
         style={{ background: 'linear-gradient(135deg, #6366F1, #4338CA)' }}
         aria-hidden="true"
       >
         {initialsOf(name)}
       </span>
-      <span className="text-sm font-medium text-gray-800 dark:text-gray-100">
-        {shortName(name)}
+      <span className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate">
+        {name}
       </span>
     </div>
   );
