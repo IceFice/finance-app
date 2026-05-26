@@ -39,3 +39,4 @@ export const IconChevR  = (p: SVGProps<SVGSVGElement>) => <I {...p}><path d="M9 
 export const IconPlus   = (p: SVGProps<SVGSVGElement>) => <I {...p}><path d="M12 5v14M5 12h14" /></I>;
 export const IconTags   = (p: SVGProps<SVGSVGElement>) => <I {...p}><path d="M20.6 13.4 13 21l-9-9V4h8z" /><circle cx="8" cy="8" r="1.5" fill="currentColor" /></I>;
 export const IconGoal   = (p: SVGProps<SVGSVGElement>) => <I {...p}><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1.5" fill="currentColor" /></I>;
+export const IconRepeat = (p: SVGProps<SVGSVGElement>) => <I {...p}><path d="M17 2l4 4-4 4" /><path d="M21 6H7a4 4 0 0 0-4 4" /><path d="M7 22l-4-4 4-4" /><path d="M3 18h14a4 4 0 0 0 4-4" /></I>;

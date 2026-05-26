@@ -13,6 +13,7 @@ import { categoriesRouter } from './modules/categories/categories.router';
 import { budgetsRouter } from './modules/budgets/budgets.router';
 import { reportsRouter } from './modules/reports/reports.router';
 import { goalsRouter } from './modules/goals/goals.router';
+import { recurringRouter } from './modules/recurring/recurring.router';
 
 const app = express();
 
@@ -43,6 +44,7 @@ app.use('/api/v1/categories', categoriesRouter);
 app.use('/api/v1/budgets', budgetsRouter);
 app.use('/api/v1/reports', reportsRouter);
 app.use('/api/v1/goals', goalsRouter);
+app.use('/api/v1/recurring', recurringRouter);
 
 app.use(errorHandler);
 

@@ -20,6 +20,7 @@ const CategoriesPage   = lazy(() => import('@/pages/Categories'));
 const SettingsPage     = lazy(() => import('@/pages/Settings'));
 const ImportPage       = lazy(() => import('@/pages/Import'));
 const GoalsPage        = lazy(() => import('@/pages/Goals'));
+const RecurringPage    = lazy(() => import('@/pages/Recurring'));
 
 function PageFallback() {
   return (
@@ -127,6 +128,9 @@ function AppRoutes() {
               } />
               <Route path="/goals" element={
                 <ErrorBoundary><Suspense fallback={<PageFallback />}><GoalsPage /></Suspense></ErrorBoundary>
+              } />
+              <Route path="/recurring" element={
+                <ErrorBoundary><Suspense fallback={<PageFallback />}><RecurringPage /></Suspense></ErrorBoundary>
               } />
             </Route>
 
