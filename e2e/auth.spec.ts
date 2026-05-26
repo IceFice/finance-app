@@ -131,8 +131,9 @@ test('landing page links: login and register work', async ({ page }) => {
   await page.waitForURL('**/login');
 
   await page.goto('/');
-  // Кнопка "Создать аккаунт"
-  await page.getByRole('link', { name: /создать аккаунт/i }).first().click();
+  // Главный CTA — "Начать бесплатно" (новый лендинг DR-8). Старая копия
+  // была "Создать аккаунт"; роутинг тот же — /register.
+  await page.getByRole('link', { name: /начать бесплатно|создать аккаунт/i }).first().click();
   await page.waitForURL('**/register');
 });
 
