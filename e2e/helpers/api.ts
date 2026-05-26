@@ -122,3 +122,82 @@ export async function createBudget(token: string, opts: {
   if (!res.ok) throw new Error(`createBudget: ${res.status} ${await res.text()}`);
   return (await res.json()).data;
 }
+
+// ── Goals ────────────────────────────────────────────────────────────────────
+
+export async function createGoal(token: string, opts: {
+  name: string;
+  targetAmount: string;
+  currentAmount?: string;
+  deadline?: string | null;
+  sourceAccountId?: string | null;
+  color?: string;
+  icon?: string;
+}) {
+  const res = await fetch(`${BASE}/goals`, {
+    method: 'POST',
+    headers: headers(token),
+    body: JSON.stringify({
+      name: opts.name,
+      targetAmount: opts.targetAmount,
+      currentAmount: opts.currentAmount ?? '0.00',
+      currency: 'RUB',
+      deadline: opts.deadline ?? null,
+      sourceAccountId: opts.sourceAccountId ?? null,
+      color: opts.color,
+      icon: opts.icon,
+    }),
+  });
+  if (!res.ok) throw new Error(`createGoal: ${res.status} ${await res.text()}`);
+  return (await res.json()).data;
+}
+
+// ── Recurring ────────────────────────────────────────────────────────────────
+
+export async function createRecurring(token: string, opts: {
+  accountId: string;
+  categoryId?: string | null;
+  amount: string;
+  type: 'debit' | 'credit';
+  frequency?: 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'yearly';
+  startDate?: string;
+  merchant?: string;
+}) {
+  const today = new Date().toISOString().split('T')[0];
+  const res = await fetch(`${BASE}/recurring`, {
+    method: 'POST',
+    headers: headers(token),
+    body: JSON.stringify({
+      accountId: opts.accountId,
+      categoryId: opts.categoryId ?? null,
+      amount: opts.amount,
+      currency: 'RUB',
+      type: opts.type,
+      frequency: opts.frequency ?? 'monthly',
+      startDate: opts.startDate ?? today,
+      merchant: opts.merchant,
+    }),
+  });
+  if (!res.ok) throw new Error(`createRecurring: ${res.status} ${await res.text()}`);
+  return (await res.json()).data;
+}
+
+// ── Categories ───────────────────────────────────────────────────────────────
+
+export async function createCategory(token: string, opts: {
+  name: string;
+  type?: 'income' | 'expense';
+  color?: string;
+}) {
+  const res = await fetch(`${BASE}/categories`, {
+    method: 'POST',
+    headers: headers(token),
+    body: JSON.stringify({
+      name: opts.name,
+      type: opts.type ?? 'expense',
+      color: opts.color ?? '#6366F1',
+    }),
+  });
+  if (!res.ok) throw new Error(`createCategory: ${res.status} ${await res.text()}`);
+  return (await res.json()).data;
+}
