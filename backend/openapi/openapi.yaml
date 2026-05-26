@@ -1,0 +1,413 @@
+openapi: 3.1.0
+info:
+  title: Бабкосчёт API
+  version: "1.0.0"
+  description: |
+    Личные финансы — REST API для счетов, операций, бюджетов, отчётов,
+    регулярных платежей и целей накопления.
+
+    **Аутентификация:** access JWT (15 мин) в `Authorization: Bearer <token>`
+    + refresh-token в HttpOnly cookie (30 дней). Регистрируйтесь через
+    `POST /auth/register`, потом передавайте access в заголовке.
+
+    **Деньги** — всегда строки в JSON (`"1500.00"`), никогда не float.
+    Дефолтная валюта `RUB`.
+
+    **RLS:** все запросы исполняются под ролью `app_user` с
+    `app.current_user_id = JWT.sub`. Чужие данные физически невидимы.
+
+servers:
+  - url: /api/v1
+    description: Same-origin (Vite proxy в dev, nginx в prod)
+
+tags:
+  - { name: Auth,         description: "Регистрация, логин, refresh, смена пароля" }
+  - { name: Accounts,     description: "Счета пользователя" }
+  - { name: Transactions, description: "Операции, переводы, импорт CSV" }
+  - { name: Categories,   description: "Системные + кастомные категории" }
+  - { name: Budgets,      description: "Лимиты на категории" }
+  - { name: Reports,      description: "Агрегаты — KPI, по категориям, cash-flow" }
+  - { name: Goals,        description: "Цели накопления" }
+  - { name: Recurring,    description: "Регулярные платежи" }
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:      { type: string, example: VALIDATION_ERROR }
+            message:   { type: string, example: "Invalid request body" }
+            details:   { type: array, items: { type: object } }
+            requestId: { type: string, example: "req-abc-123" }
+            timestamp: { type: string, format: date-time }
+
+    Money:
+      type: string
+      pattern: '^-?\d+(\.\d{1,2})?$'
+      example: "1500.00"
+
+    Account:
+      type: object
+      properties:
+        id:       { type: string, format: uuid }
+        name:     { type: string, example: "Тинькофф Black" }
+        type:     { type: string, enum: [checking, savings, credit_card, cash, investment, loan] }
+        currency: { type: string, example: "RUB" }
+        balance:  { $ref: "#/components/schemas/Money" }
+        color:    { type: [string, "null"], example: "#1E2235" }
+        icon:     { type: [string, "null"], example: "💳" }
+        isActive: { type: boolean }
+
+    Transaction:
+      type: object
+      properties:
+        id:              { type: string, format: uuid }
+        accountId:       { type: string, format: uuid }
+        categoryId:      { type: [string, "null"], format: uuid }
+        amount:          { $ref: "#/components/schemas/Money" }
+        currency:        { type: string, example: "RUB" }
+        type:            { type: string, enum: [debit, credit, transfer] }
+        description:     { type: [string, "null"] }
+        merchant:        { type: [string, "null"] }
+        notes:           { type: [string, "null"] }
+        date:            { type: string, format: date }
+        transferPairId:  { type: [string, "null"], format: uuid }
+        categoryName:    { type: [string, "null"] }
+        categoryColor:   { type: [string, "null"] }
+        accountName:     { type: [string, "null"] }
+
+    SuccessEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data: { description: "Resource or list of resources" }
+        meta:
+          type: object
+          properties:
+            requestId: { type: string }
+
+    PaginatedEnvelope:
+      type: object
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/Transaction" }
+        pagination:
+          type: object
+          required: [hasMore, limit]
+          properties:
+            nextCursor: { type: [string, "null"] }
+            hasMore:    { type: boolean }
+            limit:      { type: integer }
+
+security:
+  - BearerAuth: []
+
+paths:
+  # ── Auth ───────────────────────────────────────────────────────────────
+  /auth/register:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Регистрация
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, fullName]
+              properties:
+                email:    { type: string, format: email }
+                password: { type: string, minLength: 8 }
+                fullName: { type: string }
+      responses:
+        "201":
+          description: Создан + access token + HttpOnly refresh cookie
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      user:        { type: object }
+                      accessToken: { type: string }
+        "409": { description: "Email уже занят",  content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Логин
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:    { type: string }
+                password: { type: string }
+      responses:
+        "200": { description: OK + accessToken + refresh cookie }
+        "401": { description: Invalid credentials, content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+        "429": { description: Rate limit (5/15 мин), content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Обновить access по refresh cookie
+      responses:
+        "200": { description: "OK + новый accessToken" }
+        "401": { description: "Refresh истёк или отозван" }
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Логаут (отзывает refresh)
+      responses: { "204": { description: OK } }
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Текущий пользователь
+      responses: { "200": { description: OK } }
+
+  /auth/change-password:
+    post:
+      tags: [Auth]
+      summary: Смена пароля
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [currentPassword, newPassword]
+              properties:
+                currentPassword: { type: string }
+                newPassword:     { type: string, minLength: 8 }
+      responses:
+        "200": { description: OK }
+        "401": { description: "Неверный текущий пароль" }
+
+  # ── Accounts ───────────────────────────────────────────────────────────
+  /accounts:
+    get:
+      tags: [Accounts]
+      summary: Мои счета
+      responses: { "200": { description: OK } }
+    post:
+      tags: [Accounts]
+      summary: Создать счёт
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/Account" } } }
+      responses: { "201": { description: Создан } }
+  /accounts/{id}:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+    get:    { tags: [Accounts], summary: Получить счёт,        responses: { "200": { description: OK }, "404": { description: Not found } } }
+    patch:  { tags: [Accounts], summary: Обновить счёт,         responses: { "200": { description: OK } } }
+    delete: { tags: [Accounts], summary: Удалить счёт (soft),   responses: { "204": { description: OK } } }
+
+  # ── Transactions ───────────────────────────────────────────────────────
+  /transactions:
+    get:
+      tags: [Transactions]
+      summary: Список с фильтрами + cursor-пагинацией
+      parameters:
+        - { name: from,       in: query, schema: { type: string, format: date } }
+        - { name: to,         in: query, schema: { type: string, format: date } }
+        - { name: accountId,  in: query, schema: { type: string, format: uuid } }
+        - { name: categoryId, in: query, schema: { type: string, format: uuid } }
+        - { name: type,       in: query, schema: { type: string, enum: [debit, credit, transfer] } }
+        - { name: search,     in: query, schema: { type: string, maxLength: 100 } }
+        - { name: cursor,     in: query, schema: { type: string } }
+        - { name: limit,      in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+      responses:
+        "200":
+          description: OK
+          content: { application/json: { schema: { $ref: "#/components/schemas/PaginatedEnvelope" } } }
+    post:
+      tags: [Transactions]
+      summary: Создать операцию
+      responses: { "201": { description: Создана } }
+  /transactions/{id}:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+    get:    { tags: [Transactions], summary: Получить, responses: { "200": { description: OK } } }
+    patch:  { tags: [Transactions], summary: Обновить (description / merchant / notes), responses: { "200": { description: OK } } }
+    delete: { tags: [Transactions], summary: Удалить (soft),  responses: { "200": { description: OK } } }
+
+  /transactions/transfer:
+    post:
+      tags: [Transactions]
+      summary: Создать перевод между счетами (2 связанные tx, атомарно)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fromAccountId, toAccountId, amount, date]
+              properties:
+                fromAccountId: { type: string, format: uuid }
+                toAccountId:   { type: string, format: uuid }
+                amount:        { $ref: "#/components/schemas/Money" }
+                currency:      { type: string, default: RUB }
+                date:          { type: string, format: date }
+                description:   { type: string }
+      responses: { "201": { description: Создан } }
+
+  /transactions/import:
+    post:
+      tags: [Transactions]
+      summary: Массовый импорт (до 2000 строк)
+      description: |
+        Дедуп по `(account_id, date, amount, type, merchant NULL-safe)`,
+        если `dedupe=true` (по умолчанию).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rows]
+              properties:
+                rows:
+                  type: array
+                  maxItems: 2000
+                  items:
+                    type: object
+                    required: [accountId, amount, type, date]
+                dedupe: { type: boolean, default: true }
+      responses:
+        "201":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      inserted: { type: integer }
+                      skipped:  { type: integer }
+                      errors:   { type: array, items: { type: object } }
+
+  # ── Categories ─────────────────────────────────────────────────────────
+  /categories:
+    get:    { tags: [Categories], summary: "Все доступные (system + own)", responses: { "200": { description: OK } } }
+    post:   { tags: [Categories], summary: Создать кастомную, responses: { "201": { description: Создана } } }
+  /categories/{id}:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+    patch:  { tags: [Categories], summary: "Обновить (только свою; system → 403)", responses: { "200": { description: OK } } }
+    delete: { tags: [Categories], summary: "Удалить (только свою; tx сохраняются с NULL)", responses: { "204": { description: OK } } }
+
+  # ── Budgets ────────────────────────────────────────────────────────────
+  /budgets:
+    get:  { tags: [Budgets], summary: Мои бюджеты, responses: { "200": { description: OK } } }
+    post: { tags: [Budgets], summary: Создать,     responses: { "201": { description: Создан } } }
+  /budgets/progress:
+    get:
+      tags: [Budgets]
+      summary: Прогресс по активным бюджетам (spent / amount / pct)
+      responses: { "200": { description: OK } }
+  /budgets/{id}:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+    get:    { tags: [Budgets], summary: Получить, responses: { "200": { description: OK } } }
+    patch:  { tags: [Budgets], summary: Обновить, responses: { "200": { description: OK } } }
+    delete: { tags: [Budgets], summary: Архивировать (is_active=false), responses: { "204": { description: OK } } }
+
+  # ── Reports ────────────────────────────────────────────────────────────
+  /reports/monthly-summary:
+    get:
+      tags: [Reports]
+      summary: Доход / расход / нетто помесячно
+      parameters:
+        - { name: from, in: query, required: true, schema: { type: string, format: date } }
+        - { name: to,   in: query, required: true, schema: { type: string, format: date } }
+      responses: { "200": { description: OK } }
+  /reports/spending-by-category:
+    get:
+      tags: [Reports]
+      summary: Расходы сгруппированные по категории
+      parameters:
+        - { name: from, in: query, required: true, schema: { type: string, format: date } }
+        - { name: to,   in: query, required: true, schema: { type: string, format: date } }
+      responses: { "200": { description: OK } }
+  /reports/cash-flow:
+    get:
+      tags: [Reports]
+      summary: Cash-flow по дням / неделям / месяцам
+      parameters:
+        - { name: from,        in: query, required: true,  schema: { type: string, format: date } }
+        - { name: to,          in: query, required: true,  schema: { type: string, format: date } }
+        - { name: granularity, in: query, required: false, schema: { type: string, enum: [day, week, month], default: month } }
+      responses: { "200": { description: OK } }
+  /reports/budget-vs-actual:
+    get:
+      tags: [Reports]
+      summary: Сравнение бюджет vs факт по категориям
+      parameters:
+        - { name: from, in: query, required: true, schema: { type: string, format: date } }
+        - { name: to,   in: query, required: true, schema: { type: string, format: date } }
+      responses: { "200": { description: OK } }
+
+  # ── Goals ──────────────────────────────────────────────────────────────
+  /goals:
+    get:  { tags: [Goals], summary: Мои цели, responses: { "200": { description: OK } } }
+    post: { tags: [Goals], summary: Создать,  responses: { "201": { description: Создана } } }
+  /goals/{id}:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+    get:    { tags: [Goals], summary: Получить, responses: { "200": { description: OK } } }
+    patch:  { tags: [Goals], summary: Обновить, responses: { "200": { description: OK } } }
+    delete: { tags: [Goals], summary: Удалить,  responses: { "204": { description: OK } } }
+
+  # ── Recurring ──────────────────────────────────────────────────────────
+  /recurring:
+    get:  { tags: [Recurring], summary: Мои регулярные платежи, responses: { "200": { description: OK } } }
+    post: { tags: [Recurring], summary: Создать, responses: { "201": { description: Создан } } }
+  /recurring/{id}:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+    get:    { tags: [Recurring], summary: Получить, responses: { "200": { description: OK } } }
+    patch:  { tags: [Recurring], summary: Обновить, responses: { "200": { description: OK } } }
+    delete: { tags: [Recurring], summary: Удалить,  responses: { "204": { description: OK } } }
+  /recurring/apply:
+    post:
+      tags: [Recurring]
+      summary: Применить все просроченные регулярки сейчас
+      description: |
+        Создаёт реальные transactions для всех `is_active=true` где
+        `next_due_date <= today` и (`end_date IS NULL` или `>= next_due`).
+        Затем сдвигает `next_due_date` на следующий период по `frequency`.
+        Этот же процесс выполняется in-process scheduler'ом раз в час.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      created: { type: integer }
+                      rows:    { type: array, items: { type: string, format: uuid } }

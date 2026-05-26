@@ -3,6 +3,10 @@ import helmet from 'helmet';
 import cors from 'cors';
 import compression from 'compression';
 import cookieParser from 'cookie-parser';
+import swaggerUi from 'swagger-ui-express';
+import YAML from 'yaml';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { config } from './config';
 import { requestId } from './middleware/requestId';
 import { errorHandler } from './middleware/errorHandler';
@@ -36,6 +40,23 @@ app.use(express.urlencoded({ extended: true }));
 app.use(requestId);
 
 app.get('/health', (_req, res) => res.json({ status: 'ok', ts: new Date().toISOString() }));
+
+// ── API docs ──────────────────────────────────────────────────────────────
+// Load OpenAPI YAML once at boot — it's static text, no point re-reading.
+// Path resolves from process.cwd(), which is backend/ in dev and /app in
+// the Docker image (Dockerfile COPYs openapi/ alongside dist/). Failure
+// to load shouldn't crash the server — docs are nice-to-have, not critical.
+let openapiDoc: unknown = null;
+try {
+  const openapiYaml = readFileSync(resolve(process.cwd(), 'openapi/openapi.yaml'), 'utf-8');
+  openapiDoc = YAML.parse(openapiYaml);
+  app.get('/api/v1/openapi.json', (_req, res) => res.json(openapiDoc));
+  app.use('/api/v1/docs', swaggerUi.serve, swaggerUi.setup(openapiDoc as object, {
+    customSiteTitle: 'Бабкосчёт API',
+  }));
+} catch (e) {
+  console.warn('[openapi] spec not loaded — /api/v1/docs disabled', e instanceof Error ? e.message : e);
+}
 
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/accounts', accountsRouter);

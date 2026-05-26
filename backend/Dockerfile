@@ -40,6 +40,10 @@ COPY --from=build --chown=nodejs:nodejs /app/dist ./dist
 # Copy package.json for runtime metadata (no secrets here)
 COPY --chown=nodejs:nodejs backend/package.json ./
 
+# Copy OpenAPI spec — served at /api/v1/docs (Swagger UI) and
+# /api/v1/openapi.json. Path resolves from cwd at runtime.
+COPY --chown=nodejs:nodejs backend/openapi ./openapi
+
 # Drop to non-root user
 USER nodejs
 
