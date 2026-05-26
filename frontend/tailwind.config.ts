@@ -6,7 +6,10 @@ const config: Config = {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
     extend: {
-      fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+      fontFamily: {
+        sans:    ['Inter', 'system-ui', 'sans-serif'],
+        display: ['Onest', 'Inter', 'system-ui', 'sans-serif'],
+      },
       colors: {
         // Brand (indigo) — primary actions / accents
         brand: {
