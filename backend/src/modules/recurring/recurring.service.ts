@@ -1,3 +1,4 @@
+import type { PoolClient } from 'pg';
 import { pool } from '../../db/pool';
 import { userQuery, withUserContext } from '../../db/context';
 import { NotFoundError } from '../../lib/errors';
@@ -61,6 +62,16 @@ const SELECT_JOINED = `
   LEFT JOIN categories c ON c.id = r.category_id
 `;
 
+// Fetch + map on a caller-supplied client. Critical: create()/update() do
+// their write inside withUserContext and then need to return the joined
+// shape *on the same connection* — a fresh pool connection wouldn't yet see
+// the uncommitted INSERT/UPDATE and would 404.
+async function getByIdOnClient(db: { query: PoolClient['query'] }, id: string) {
+  const res = await db.query<Row>(`${SELECT_JOINED} WHERE r.id = $1`, [id]);
+  if (!res.rows[0]) throw new NotFoundError('Recurring');
+  return map(res.rows[0]);
+}
+
 export async function list(userId: string) {
   const res = await userQuery<Row>(
     userId,
@@ -72,9 +83,7 @@ export async function list(userId: string) {
 }
 
 export async function getById(userId: string, id: string) {
-  const res = await userQuery<Row>(userId, `${SELECT_JOINED} WHERE r.id = $1`, [id]);
-  if (!res.rows[0]) throw new NotFoundError('Recurring');
-  return map(res.rows[0]);
+  return withUserContext(userId, (db) => getByIdOnClient(db, id));
 }
 
 export async function create(userId: string, input: CreateRecurringInput) {
@@ -89,14 +98,14 @@ export async function create(userId: string, input: CreateRecurringInput) {
       `INSERT INTO recurring_transactions
        (user_id, account_id, category_id, amount, currency, type, description, merchant,
         frequency, start_date, end_date, next_due_date, is_active)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING id`,
       [userId, input.accountId, input.categoryId ?? null, input.amount, input.currency,
        input.type, input.description ?? null, input.merchant ?? null,
        input.frequency, input.startDate, input.endDate ?? null,
        input.startDate, // next_due starts at start_date
        input.isActive],
     );
-    return getById(userId, res.rows[0].id);
+    return getByIdOnClient(db, res.rows[0].id);
   });
 }
 
@@ -119,10 +128,10 @@ export async function update(userId: string, id: string, input: UpdateRecurringI
     if (input.startDate !== undefined) push('start_date', input.startDate);
     if (input.endDate !== undefined) push('end_date', input.endDate);
     if (input.isActive !== undefined) push('is_active', input.isActive);
-    if (fields.length === 0) return getById(userId, id);
+    if (fields.length === 0) return getByIdOnClient(db, id);
     values.push(id);
     await db.query(`UPDATE recurring_transactions SET ${fields.join(', ')} WHERE id = $${i}`, values);
-    return getById(userId, id);
+    return getByIdOnClient(db, id);
   });
 }
 

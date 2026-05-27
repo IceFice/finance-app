@@ -1,3 +1,4 @@
+import type { PoolClient } from 'pg';
 import { userQuery, withUserContext } from '../../db/context';
 import { NotFoundError } from '../../lib/errors';
 import type { CreateGoalInput, UpdateGoalInput } from './goals.schema';
@@ -67,14 +68,17 @@ export async function list(userId: string) {
   return res.rows.map(map);
 }
 
-export async function getById(userId: string, id: string) {
-  const res = await userQuery<GoalRow>(
-    userId,
-    `${SELECT_WITH_BALANCE} WHERE g.id = $1`,
-    [id],
-  );
+// Fetch + map on a caller-supplied client. Used by create()/update() to read
+// back the joined shape on the same connection — a fresh pool connection
+// wouldn't see the uncommitted INSERT/UPDATE yet and would 404.
+async function getByIdOnClient(db: { query: PoolClient['query'] }, id: string) {
+  const res = await db.query<GoalRow>(`${SELECT_WITH_BALANCE} WHERE g.id = $1`, [id]);
   if (!res.rows[0]) throw new NotFoundError('Goal');
   return map(res.rows[0]);
+}
+
+export async function getById(userId: string, id: string) {
+  return withUserContext(userId, (db) => getByIdOnClient(db, id));
 }
 
 export async function create(userId: string, input: CreateGoalInput) {
@@ -86,17 +90,18 @@ export async function create(userId: string, input: CreateGoalInput) {
       );
       if (a.rowCount === 0) throw new NotFoundError('Account');
     }
-    const res = await db.query<GoalRow>(
+    const res = await db.query<{ id: string }>(
       `INSERT INTO savings_goals
        (user_id, name, target_amount, current_amount, currency, deadline,
         source_account_id, color, icon, is_active)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id`,
       [userId, input.name, input.targetAmount, input.currentAmount, input.currency,
        input.deadline ?? null, input.sourceAccountId ?? null,
        input.color ?? null, input.icon ?? null, input.isActive],
     );
-    // Re-fetch joined row for source_balance.
-    return getById(userId, res.rows[0].id);
+    // Re-fetch joined row for source_balance — on the same client so we see
+    // the uncommitted INSERT.
+    return getByIdOnClient(db, res.rows[0].id);
   });
 }
 
@@ -124,10 +129,10 @@ export async function update(userId: string, id: string, input: UpdateGoalInput)
     if (input.color !== undefined) push('color', input.color);
     if (input.icon !== undefined) push('icon', input.icon);
     if (input.isActive !== undefined) push('is_active', input.isActive);
-    if (fields.length === 0) return getById(userId, id);
+    if (fields.length === 0) return getByIdOnClient(db, id);
     values.push(id);
     await db.query(`UPDATE savings_goals SET ${fields.join(', ')} WHERE id = $${i}`, values);
-    return getById(userId, id);
+    return getByIdOnClient(db, id);
   });
 }
 
