@@ -32,7 +32,6 @@ authRouter.post('/login', authLimiter, asyncHandler(async (req: Request, res: Re
 }));
 
 authRouter.post('/refresh', refreshLimiter, asyncHandler(async (req: Request, res: Response) => {
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
   const token = req.cookies?.refreshToken as string | undefined;
   if (!token) {
     return sendError(res, 401, 'UNAUTHORIZED', 'No refresh token', req.requestId);
@@ -43,7 +42,6 @@ authRouter.post('/refresh', refreshLimiter, asyncHandler(async (req: Request, re
 }));
 
 authRouter.post('/logout', asyncHandler(async (req: Request, res: Response) => {
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
   const token = req.cookies?.refreshToken as string | undefined;
   if (token) await authService.logout(token);
   res.clearCookie('refreshToken', { path: '/api/v1/auth' });

@@ -133,9 +133,16 @@ jobs:
           project: finance-app
           path: .
           format: HTML
+          # --disableNodeAudit: the NodeAuditAnalyzer calls npmjs.org's audit
+          # API and has been returning "Invalid payload submitted to Node Audit
+          # API" on our regenerated lockfile (a known OWASP DC issue with
+          # newer lockfile features). We already run a dedicated `npm audit`
+          # step in the dependency-audit job — leaving Node Audit on here
+          # is redundant. Keep CPE-based scanning (Retired, suppressions).
           args: >
             --enableRetired
             --failOnCVSS 7
+            --disableNodeAudit
             --suppression .owasp-suppression.xml
         env:
           JAVA_HOME: /opt/jdk
