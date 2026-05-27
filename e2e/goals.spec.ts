@@ -27,7 +27,9 @@ test('G-02: existing goal renders with name + target', async ({ page }) => {
   await loginViaUI(page, user);
 
   await page.goto('/goals');
-  await expect(page.getByText('Отпуск 2026')).toBeVisible();
+  // Имя цели появляется и в карточке, и в SavingsMini сайдбара — .first()
+  // снимает strict-mode конфликт.
+  await expect(page.getByText('Отпуск 2026').first()).toBeVisible();
   // 60 000 ₽ форматируется с пробелом-разделителем (NBSP) → regex с . для любого пробела
   await expect(page.getByText(/60.000/).first()).toBeVisible();
 });
@@ -56,7 +58,7 @@ test('G-04: goal linked to source account uses its balance', async ({ page }) =>
   await loginViaUI(page, user);
 
   await page.goto('/goals');
-  // Карточка с именем цели + ожидаем 25% (25k / 100k)
-  await expect(page.getByText('Подушка')).toBeVisible();
+  // Карточка с именем цели (имя есть и в SavingsMini сайдбара) + 25% (25k / 100k)
+  await expect(page.getByText('Подушка').first()).toBeVisible();
   await expect(page.getByText(/25\s*%/).first()).toBeVisible();
 });

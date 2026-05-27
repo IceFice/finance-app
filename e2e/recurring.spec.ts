@@ -31,7 +31,9 @@ test('Rec-02: existing recurring renders with merchant + amount', async ({ page 
   await loginViaUI(page, user);
 
   await page.goto('/recurring');
-  await expect(page.getByText('Spotify')).toBeVisible();
+  // .first() — на странице есть и карточка, и summary tile, оба могут содержать
+  // тот же merchant/amount при некоторых раскладках; strict-mode иначе падает.
+  await expect(page.getByText('Spotify').first()).toBeVisible();
   await expect(page.getByText(/999/).first()).toBeVisible();
 });
 

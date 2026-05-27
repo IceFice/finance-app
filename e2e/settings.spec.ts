@@ -14,8 +14,10 @@ test('Set-01: settings page shows user profile + sections', async ({ page }) => 
 
   await page.goto('/settings');
   await expect(page.getByRole('heading', { name: /^настройки$/i })).toBeVisible();
-  await expect(page.getByText(user.fullName)).toBeVisible();
-  await expect(page.getByText(user.email)).toBeVisible();
+  // fullName + email появляются и в UserPill топбара, и в строках «Профиль»
+  // → используем .first() чтобы strict-mode локатор не падал на 2 совпадениях.
+  await expect(page.getByText(user.fullName).first()).toBeVisible();
+  await expect(page.getByText(user.email).first()).toBeVisible();
   // Все 4 секции
   await expect(page.getByText(/^профиль$/i)).toBeVisible();
   await expect(page.getByText(/^сменить пароль$/i)).toBeVisible();
