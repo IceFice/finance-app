@@ -5,6 +5,7 @@ import { PoolClient } from 'pg';
 import { pool } from '../../db/pool';
 import { config } from '../../config';
 import { ConflictError, UnauthorizedError, NotFoundError, DomainError } from '../../lib/errors';
+import { sendEmail } from '../../lib/mailer';
 import type { RegisterInput, LoginInput } from './auth.schema';
 
 function hashToken(token: string): string {
@@ -151,6 +152,96 @@ export async function getProfile(userId: string) {
   if (!res.rows[0]) throw new NotFoundError('User');
   const u = res.rows[0];
   return { id: u.id, email: u.email, fullName: u.full_name, defaultCurrency: u.default_currency, timezone: u.timezone, createdAt: u.created_at };
+}
+
+// ── Forgot / reset password ───────────────────────────────────────────────
+// Important: requestPasswordReset always succeeds from the caller's POV
+// (no information disclosure about whether the email is registered). We
+// generate a token only when the user exists; the response is identical
+// either way.
+
+const RESET_TOKEN_TTL_MIN = 30;
+
+export async function requestPasswordReset(email: string, requestIp: string | undefined) {
+  const userRes = await pool.query<{ id: string; full_name: string }>(
+    `SELECT id, full_name FROM users WHERE email = $1 AND deleted_at IS NULL`,
+    [email]
+  );
+  const user = userRes.rows[0];
+  if (!user) return;  // silent no-op — caller still gets 200
+
+  const token = crypto.randomBytes(40).toString('hex');
+  const tokenHash = hashToken(token);
+  const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MIN * 60 * 1000);
+  // Invalidate any prior unused tokens for this user — only the latest works.
+  await pool.query(
+    `UPDATE password_reset_tokens SET used_at = NOW()
+     WHERE user_id = $1 AND used_at IS NULL`,
+    [user.id]
+  );
+  await pool.query(
+    `INSERT INTO password_reset_tokens (user_id, token_hash, expires_at, request_ip)
+     VALUES ($1, $2, $3, $4)`,
+    [user.id, tokenHash, expiresAt, requestIp ?? null]
+  );
+
+  const resetUrl = `${config.FRONTEND_URL}/reset-password?token=${token}`;
+  const body = [
+    `Привет, ${user.full_name || 'пользователь'}!`,
+    '',
+    'Кто-то (надеемся, вы) попросил сбросить пароль в Бабкосчёте.',
+    'Ссылка действует 30 минут:',
+    '',
+    resetUrl,
+    '',
+    'Если это были не вы — просто проигнорируйте это письмо.',
+    '— Бабкосчёт',
+  ].join('\n');
+  await sendEmail({
+    to: email,
+    subject: 'Сброс пароля — Бабкосчёт',
+    text: body,
+    html: `<p>Привет, <b>${user.full_name || 'пользователь'}</b>!</p>
+<p>Кто-то (надеемся, вы) попросил сбросить пароль в Бабкосчёте.</p>
+<p><a href="${resetUrl}" style="display:inline-block;padding:10px 18px;border-radius:8px;background:#6366F1;color:#fff;text-decoration:none">Сбросить пароль</a></p>
+<p>Ссылка действует 30 минут.</p>
+<p style="color:#888;font-size:12px">Если это были не вы — просто проигнорируйте это письмо.</p>`,
+  });
+}
+
+export async function resetPassword(token: string, newPassword: string) {
+  const tokenHash = hashToken(token);
+  const res = await pool.query<{ id: string; user_id: string; expires_at: Date; used_at: Date | null }>(
+    `SELECT id, user_id, expires_at, used_at FROM password_reset_tokens WHERE token_hash = $1`,
+    [tokenHash]
+  );
+  const row = res.rows[0];
+  if (!row) throw new UnauthorizedError('Invalid or expired reset link');
+  if (row.used_at) throw new UnauthorizedError('Reset link already used');
+  if (row.expires_at < new Date()) throw new UnauthorizedError('Reset link expired — request a new one');
+
+  const newHash = await bcrypt.hash(newPassword, config.BCRYPT_ROUNDS);
+  // Atomic: mark token used, set password, revoke any active refresh tokens
+  // for the user (force re-login on every other device).
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query(`UPDATE password_reset_tokens SET used_at = NOW() WHERE id = $1`, [row.id]);
+    await client.query(
+      `UPDATE users SET password_hash = $1, failed_login_attempts = 0, locked_until = NULL WHERE id = $2`,
+      [newHash, row.user_id]
+    );
+    await client.query(
+      `UPDATE refresh_tokens SET revoked_at = NOW() WHERE user_id = $1 AND revoked_at IS NULL`,
+      [row.user_id]
+    );
+    await client.query('COMMIT');
+  } catch (e) {
+    await client.query('ROLLBACK');
+    throw e;
+  } finally {
+    client.release();
+  }
 }
 
 export async function changePassword(userId: string, currentPassword: string, newPassword: string) {

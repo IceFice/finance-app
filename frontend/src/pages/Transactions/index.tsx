@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { exportTransactionsCsv } from '@/lib/exportCsv';
+import { useToast } from '@/components/ui/Toast';
 import { useTransactions, useDeleteTransaction, useCreateTransaction, useUpdateTransaction, Transaction } from '../../hooks/useTransactions';
 import { useAccounts } from '../../hooks/useAccounts';
 import { useCategories } from '../../hooks/useReports';
@@ -539,6 +541,26 @@ export default function TransactionsPage() {
   const [search, setSearch] = useState('');
   const [accountId, setAccountId] = useState('');
   const [categoryId, setCategoryId] = useState('');
+  const [exportBusy, setExportBusy] = useState(false);
+  const toast = useToast();
+
+  async function handleExportCsv() {
+    setExportBusy(true);
+    try {
+      const { count } = await exportTransactionsCsv({
+        from: fromDate, to: toDate,
+        accountId: accountId || undefined,
+        categoryId: categoryId || undefined,
+        type: txType || undefined,
+        search: search || undefined,
+      });
+      toast.showSuccess(`Выгружено ${count} ${count === 1 ? 'операция' : count < 5 ? 'операции' : 'операций'}`);
+    } catch {
+      toast.showError('Не удалось выгрузить CSV');
+    } finally {
+      setExportBusy(false);
+    }
+  }
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [detailTx, setDetailTx] = useState<Transaction | null>(null);
@@ -641,6 +663,14 @@ export default function TransactionsPage() {
           <h1 className="m-0 text-2xl md:text-[28px] font-semibold tracking-tight">Операции</h1>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleExportCsv}
+            disabled={exportBusy}
+            className="inline-flex items-center gap-1.5 h-10 px-4 rounded-xl border border-gray-200 dark:border-[#262A3A] bg-white dark:bg-[#181B26] text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/[0.04] transition-colors disabled:opacity-60"
+          >
+            <span aria-hidden="true">⇩</span> {exportBusy ? 'Экспорт…' : 'Экспорт CSV'}
+          </button>
           <Link
             to="/import"
             className="inline-flex items-center gap-1.5 h-10 px-4 rounded-xl border border-gray-200 dark:border-[#262A3A] bg-white dark:bg-[#181B26] text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/[0.04] transition-colors"

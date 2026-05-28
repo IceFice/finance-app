@@ -194,18 +194,18 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           </div>
           <div className="flex-1" />
 
-          {/* Bell — notification dot in brand colour, v3 style */}
+          {/* Bell — notifications backend isn't built yet, so we render the
+              icon without the "new" dot to avoid lying to the user. The
+              button is intentionally non-interactive (no onClick) until
+              the notifications feature lands. */}
           <button
             type="button"
-            aria-label="Уведомления"
-            className="relative w-10 h-10 rounded-xl bg-white dark:bg-[#181B26] border border-gray-200 dark:border-[#262A3A] grid place-items-center text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/[0.04]"
+            aria-label="Уведомления (скоро)"
+            title="Уведомления появятся в следующих версиях"
+            disabled
+            className="relative w-10 h-10 rounded-xl bg-white dark:bg-[#181B26] border border-gray-200 dark:border-[#262A3A] grid place-items-center text-gray-400 dark:text-gray-500 cursor-not-allowed"
           >
             <IconBell />
-            <span
-              aria-hidden="true"
-              className="absolute top-2 right-2.5 w-2 h-2 rounded-full bg-brand-600"
-              style={{ boxShadow: '0 0 0 2px #fff' }}
-            />
           </button>
 
           {/* User pill — gradient avatar + name (initials fallback). */}

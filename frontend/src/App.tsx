@@ -11,6 +11,8 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 const LandingPage      = lazy(() => import('@/pages/Landing'));
 const LoginPage        = lazy(() => import('@/pages/Login'));
 const RegisterPage     = lazy(() => import('@/pages/Register'));
+const ForgotPasswordPage = lazy(() => import('@/pages/ForgotPassword'));
+const ResetPasswordPage  = lazy(() => import('@/pages/ResetPassword'));
 const DashboardPage    = lazy(() => import('@/pages/Dashboard'));
 const TransactionsPage = lazy(() => import('@/pages/Transactions'));
 const AccountsPage     = lazy(() => import('@/pages/Accounts'));
@@ -98,6 +100,12 @@ function AppRoutes() {
             } />
             <Route path="/register" element={
               <Suspense fallback={<PageFallback />}><RegisterPage /></Suspense>
+            } />
+            <Route path="/forgot-password" element={
+              <Suspense fallback={<PageFallback />}><ForgotPasswordPage /></Suspense>
+            } />
+            <Route path="/reset-password" element={
+              <Suspense fallback={<PageFallback />}><ResetPasswordPage /></Suspense>
             } />
 
             {/* ── Защищённые маршруты ── */}

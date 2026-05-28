@@ -4,7 +4,10 @@ import { sendSuccess, sendError } from '../../lib/response';
 import { authenticate } from '../../middleware/authenticate';
 import { authLimiter, refreshLimiter } from '../../middleware/rateLimiter';
 import * as authService from './auth.service';
-import { registerSchema, loginSchema, changePasswordSchema } from './auth.schema';
+import {
+  registerSchema, loginSchema, changePasswordSchema,
+  forgotPasswordSchema, resetPasswordSchema,
+} from './auth.schema';
 import { isProd } from '../../config';
 
 export const authRouter = Router();
@@ -57,4 +60,21 @@ authRouter.post('/change-password', authenticate, asyncHandler(async (req: Reque
   const { currentPassword, newPassword } = changePasswordSchema.parse(req.body);
   await authService.changePassword(req.userId, currentPassword, newPassword);
   sendSuccess(res, { message: 'Password changed' });
+}));
+
+// ── Forgot / Reset password ────────────────────────────────────────────────
+// Both endpoints use authLimiter (5/15min, fail-closed) — the request flow
+// is sensitive to abuse (enumeration via timing, brute force on the token).
+
+authRouter.post('/forgot-password', authLimiter, asyncHandler(async (req: Request, res: Response) => {
+  const { email } = forgotPasswordSchema.parse(req.body);
+  await authService.requestPasswordReset(email, req.ip);
+  // Always 200 — no information disclosure about which emails exist.
+  sendSuccess(res, { message: 'If the email is registered, a reset link has been sent.' });
+}));
+
+authRouter.post('/reset-password', authLimiter, asyncHandler(async (req: Request, res: Response) => {
+  const { token, password } = resetPasswordSchema.parse(req.body);
+  await authService.resetPassword(token, password);
+  sendSuccess(res, { message: 'Password reset successful' });
 }));

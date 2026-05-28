@@ -286,8 +286,9 @@ export default function LandingPage() {
                 Лимиты, которые не выбешивают.
               </h3>
               <p className="text-[15px] text-[#B5B9CC] leading-relaxed">
-                Поставили 10 000 ₽ на кофе и кафе — Бабкосчёт мягко напомнит на 80%,
-                а на 100% не будет орать капслоком. Просто покажет цифру.
+                Поставили 10 000 ₽ на кафе — Бабкосчёт цветом подскажет,
+                как близко вы к лимиту. Зелёный, жёлтый на 80%, красный за 100%.
+                Без капслока и push-нотификаций по ночам.
               </p>
               <div className="mt-auto pt-6 space-y-3">
                 {[
@@ -346,8 +347,8 @@ export default function LandingPage() {
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/5 text-[11px] font-medium w-fit">
                 <span className="w-2 h-2 rounded-sm" style={{ background: PINK }} /> Категории
               </span>
-              <h3 className="font-display text-[20px] font-bold mt-3 mb-1.5">Сами клеятся, не вручную.</h3>
-              <p className="text-[13px] text-[#B5B9CC]">Перекрёсток — продукты. Surf — кафе. Если ошиблось, поправите в один тап.</p>
+              <h3 className="font-display text-[20px] font-bold mt-3 mb-1.5">Свои категории, ваш порядок.</h3>
+              <p className="text-[13px] text-[#B5B9CC]">Готовый набор «Продукты / Кафе / Транспорт» и добавьте своё — иконка, цвет, пара кликов.</p>
             </article>
 
             {/* Md: Goals */}
@@ -400,7 +401,7 @@ export default function LandingPage() {
                 деньги — это нормально, а не премиум-фича.
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
-                {['🔒 Шифрование по умолчанию', '🚫 Ноль трекеров', '📁 Экспорт в JSON в 1 клик', '✅ Открытый код'].map((t) => (
+                {['🔐 HTTPS-by-default', '🚫 Ноль трекеров', '📁 Экспорт CSV/JSON в 1 клик', '✅ Открытый код'].map((t) => (
                   <span key={t} className="inline-flex items-center px-3 py-1.5 rounded-lg bg-[#181B26] border border-white/[0.10] text-[12px]">
                     {t}
                   </span>
