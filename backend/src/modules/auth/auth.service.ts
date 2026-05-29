@@ -22,16 +22,28 @@ function generateRefreshToken(): string {
   return crypto.randomBytes(40).toString('hex');
 }
 
-async function storeRefreshToken(client: PoolClient, userId: string, token: string): Promise<void> {
+export interface SessionMeta {
+  userAgent?: string;
+  ip?: string;
+}
+
+async function storeRefreshToken(
+  client: PoolClient,
+  userId: string,
+  token: string,
+  familyId: string,
+  meta: SessionMeta = {}
+): Promise<void> {
   const hashed = hashToken(token);
   const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
   await client.query(
-    `INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)`,
-    [userId, hashed, expiresAt]
+    `INSERT INTO refresh_tokens (user_id, token_hash, expires_at, family_id, user_agent, ip, last_used_at)
+     VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
+    [userId, hashed, expiresAt, familyId, meta.userAgent ?? null, meta.ip ?? null]
   );
 }
 
-export async function register(input: RegisterInput) {
+export async function register(input: RegisterInput, meta: SessionMeta = {}) {
   const existing = await pool.query('SELECT id FROM users WHERE email = $1 AND deleted_at IS NULL', [input.email]);
   if ((existing.rowCount ?? 0) > 0) throw new ConflictError('Email already registered');
 
@@ -58,7 +70,7 @@ export async function register(input: RegisterInput) {
   }
 }
 
-export async function login(input: LoginInput) {
+export async function login(input: LoginInput, meta: SessionMeta = {}) {
   const userRes = await pool.query<{
     id: string; password_hash: string; failed_login_attempts: number; locked_until: Date | null;
   }>(
@@ -114,21 +126,44 @@ export async function login(input: LoginInput) {
   return { accessToken: signAccessToken(user.id), refreshToken, userId: user.id };
 }
 
-export async function refresh(token: string) {
+export async function refresh(token: string, meta: SessionMeta = {}) {
   const hashed = hashToken(token);
-  const res = await pool.query<{ user_id: string; expires_at: Date }>(
-    `SELECT user_id, expires_at FROM refresh_tokens WHERE token_hash = $1 AND revoked_at IS NULL`,
+  // Fetch the token REGARDLESS of revoked state so we can detect reuse.
+  const res = await pool.query<{
+    user_id: string; expires_at: Date; revoked_at: Date | null; family_id: string;
+  }>(
+    `SELECT user_id, expires_at, revoked_at, family_id FROM refresh_tokens WHERE token_hash = $1`,
     [hashed]
   );
   const row = res.rows[0];
-  if (!row || row.expires_at < new Date()) throw new UnauthorizedError('Invalid or expired refresh token');
+  if (!row) throw new UnauthorizedError('Invalid or expired refresh token');
+
+  // ── Theft detection ──────────────────────────────────────────────────────
+  // A revoked token being presented again means one of:
+  //   (a) the rightful client retried a request (rare), or
+  //   (b) an attacker is replaying a stolen-but-rotated token.
+  // We can't tell them apart, so we fail safe: nuke the whole family. The
+  // legitimate user is forced to log in again; the attacker's stolen token
+  // is now worthless.
+  if (row.revoked_at) {
+    await pool.query(
+      `UPDATE refresh_tokens SET revoked_at = NOW()
+       WHERE family_id = $1 AND revoked_at IS NULL`,
+      [row.family_id]
+    );
+    console.warn(`[auth] refresh-token reuse detected — revoked family ${row.family_id} for user ${row.user_id}`);
+    throw new UnauthorizedError('Session expired for security reasons. Please log in again.');
+  }
+
+  if (row.expires_at < new Date()) throw new UnauthorizedError('Invalid or expired refresh token');
 
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     await client.query(`UPDATE refresh_tokens SET revoked_at = NOW() WHERE token_hash = $1`, [hashed]);
     const newRefresh = generateRefreshToken();
-    await storeRefreshToken(client, row.user_id, newRefresh);
+    // Rotate within the SAME family + carry forward session metadata.
+    await storeRefreshToken(client, row.user_id, newRefresh, row.family_id, meta);
     await client.query('COMMIT');
     return { accessToken: signAccessToken(row.user_id), refreshToken: newRefresh };
   } catch (err) {
@@ -137,6 +172,73 @@ export async function refresh(token: string) {
   } finally {
     client.release();
   }
+}
+
+// ── Sessions ────────────────────────────────────────────────────────────────
+// Each active (non-revoked, non-expired) refresh token = one live session.
+// Rotation keeps exactly one active token per family, so listing active tokens
+// effectively lists devices/sessions.
+
+export interface SessionRow {
+  familyId: string;
+  userAgent: string | null;
+  ip: string | null;
+  createdAt: Date;
+  lastUsedAt: Date | null;
+  isCurrent: boolean;
+}
+
+export async function listSessions(userId: string, currentToken?: string): Promise<SessionRow[]> {
+  const currentHash = currentToken ? hashToken(currentToken) : null;
+  const res = await pool.query<{
+    family_id: string; token_hash: string; user_agent: string | null;
+    ip: string | null; created_at: Date; last_used_at: Date | null;
+  }>(
+    `SELECT family_id, token_hash, user_agent, ip, created_at, last_used_at
+     FROM refresh_tokens
+     WHERE user_id = $1 AND revoked_at IS NULL AND expires_at > NOW()
+     ORDER BY last_used_at DESC NULLS LAST, created_at DESC`,
+    [userId]
+  );
+  return res.rows.map((r) => ({
+    familyId: r.family_id,
+    userAgent: r.user_agent,
+    ip: r.ip,
+    createdAt: r.created_at,
+    lastUsedAt: r.last_used_at,
+    isCurrent: currentHash != null && r.token_hash === currentHash,
+  }));
+}
+
+export async function revokeSession(userId: string, familyId: string): Promise<void> {
+  // user_id in the WHERE clause is the ownership guard — you can only kill
+  // your own sessions.
+  const res = await pool.query(
+    `UPDATE refresh_tokens SET revoked_at = NOW()
+     WHERE user_id = $1 AND family_id = $2 AND revoked_at IS NULL`,
+    [userId, familyId]
+  );
+  if (res.rowCount === 0) throw new NotFoundError('Session');
+}
+
+export async function revokeOtherSessions(userId: string, currentToken?: string): Promise<number> {
+  const currentHash = currentToken ? hashToken(currentToken) : null;
+  // Find the family of the current session so we keep it alive.
+  let keepFamily: string | null = null;
+  if (currentHash) {
+    const cur = await pool.query<{ family_id: string }>(
+      `SELECT family_id FROM refresh_tokens WHERE token_hash = $1`,
+      [currentHash]
+    );
+    keepFamily = cur.rows[0]?.family_id ?? null;
+  }
+  const res = await pool.query(
+    `UPDATE refresh_tokens SET revoked_at = NOW()
+     WHERE user_id = $1 AND revoked_at IS NULL
+       AND ($2::uuid IS NULL OR family_id <> $2)`,
+    [userId, keepFamily]
+  );
+  return res.rowCount ?? 0;
 }
 
 export async function logout(token: string) {

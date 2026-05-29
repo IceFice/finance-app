@@ -20,16 +20,24 @@ const COOKIE_OPTS = {
   path: '/api/v1/auth',
 };
 
+// Capture device metadata for the sessions list + audit trail.
+function sessionMeta(req: Request): authService.SessionMeta {
+  return {
+    userAgent: (req.headers['user-agent'] ?? '').slice(0, 400) || undefined,
+    ip: req.ip,
+  };
+}
+
 authRouter.post('/register', authLimiter, asyncHandler(async (req: Request, res: Response) => {
   const input = registerSchema.parse(req.body);
-  const { accessToken, refreshToken, userId } = await authService.register(input);
+  const { accessToken, refreshToken, userId } = await authService.register(input, sessionMeta(req));
   res.cookie('refreshToken', refreshToken, COOKIE_OPTS);
   sendSuccess(res, { accessToken, userId }, 201);
 }));
 
 authRouter.post('/login', authLimiter, asyncHandler(async (req: Request, res: Response) => {
   const input = loginSchema.parse(req.body);
-  const { accessToken, refreshToken, userId } = await authService.login(input);
+  const { accessToken, refreshToken, userId } = await authService.login(input, sessionMeta(req));
   res.cookie('refreshToken', refreshToken, COOKIE_OPTS);
   sendSuccess(res, { accessToken, userId });
 }));
@@ -39,7 +47,7 @@ authRouter.post('/refresh', refreshLimiter, asyncHandler(async (req: Request, re
   if (!token) {
     return sendError(res, 401, 'UNAUTHORIZED', 'No refresh token', req.requestId);
   }
-  const { accessToken, refreshToken } = await authService.refresh(token);
+  const { accessToken, refreshToken } = await authService.refresh(token, sessionMeta(req));
   res.cookie('refreshToken', refreshToken, COOKIE_OPTS);
   sendSuccess(res, { accessToken });
 }));
@@ -54,6 +62,25 @@ authRouter.post('/logout', asyncHandler(async (req: Request, res: Response) => {
 authRouter.get('/me', authenticate, asyncHandler(async (req: Request, res: Response) => {
   const profile = await authService.getProfile(req.userId);
   sendSuccess(res, profile);
+}));
+
+// ── Sessions ────────────────────────────────────────────────────────────────
+authRouter.get('/sessions', authenticate, asyncHandler(async (req: Request, res: Response) => {
+  const current = req.cookies?.refreshToken as string | undefined;
+  sendSuccess(res, await authService.listSessions(req.userId, current));
+}));
+
+// Revoke one session (other device). Path param is the session's family_id.
+authRouter.delete('/sessions/:familyId', authenticate, asyncHandler(async (req: Request, res: Response) => {
+  await authService.revokeSession(req.userId, req.params['familyId'] as string);
+  res.status(204).end();
+}));
+
+// "Выйти на всех других устройствах" — keeps the caller's own session alive.
+authRouter.post('/sessions/revoke-others', authenticate, asyncHandler(async (req: Request, res: Response) => {
+  const current = req.cookies?.refreshToken as string | undefined;
+  const revoked = await authService.revokeOtherSessions(req.userId, current);
+  sendSuccess(res, { revoked });
 }));
 
 authRouter.post('/change-password', authenticate, asyncHandler(async (req: Request, res: Response) => {

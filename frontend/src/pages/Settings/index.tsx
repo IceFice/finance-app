@@ -14,6 +14,7 @@ import api from '@/lib/api';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/components/ui/Toast';
+import { SessionsCard } from './SessionsCard';
 
 const passwordSchema = z.object({
   currentPassword: z.string().min(1, 'Введите текущий пароль'),
@@ -180,6 +181,8 @@ export default function SettingsPage() {
           </button>
         </Row>
       </Section>
+
+      <SessionsCard />
 
       <Section title="Данные" sub="Полная выгрузка вашего аккаунта в JSON — счета, категории, бюджеты и все операции.">
         <Row label="Экспортировать всё">

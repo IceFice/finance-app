@@ -28,7 +28,8 @@ function build(): { transporter: Transporter; isReal: boolean } {
     port: process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : undefined,
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
-    from: process.env.SMTP_FROM,
+    // Accept either SMTP_FROM or the legacy EMAIL_FROM name from the env example.
+    from: process.env.SMTP_FROM ?? process.env.EMAIL_FROM,
     secure: process.env.SMTP_SECURE === 'true',
   };
   if (cfg.from) cachedFrom = cfg.from;

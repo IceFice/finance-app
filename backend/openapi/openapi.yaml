@@ -207,6 +207,92 @@ paths:
         "200": { description: OK }
         "401": { description: "Неверный текущий пароль" }
 
+  /auth/forgot-password:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Запросить ссылку для сброса пароля
+      description: Всегда возвращает 200 (нет раскрытия существующих email).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties: { email: { type: string, format: email } }
+      responses:
+        "200": { description: "Если email зарегистрирован — письмо отправлено" }
+
+  /auth/reset-password:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Установить новый пароль по токену из письма
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, password]
+              properties:
+                token:    { type: string }
+                password: { type: string, minLength: 8 }
+      responses:
+        "200": { description: OK }
+        "401": { description: "Ссылка недействительна или истекла" }
+
+  /auth/sessions:
+    get:
+      tags: [Auth]
+      summary: Список активных сессий (устройств)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        familyId:   { type: string, format: uuid }
+                        userAgent:  { type: [string, "null"] }
+                        ip:         { type: [string, "null"] }
+                        createdAt:  { type: string, format: date-time }
+                        lastUsedAt: { type: [string, "null"], format: date-time }
+                        isCurrent:  { type: boolean }
+
+  /auth/sessions/{familyId}:
+    delete:
+      tags: [Auth]
+      summary: Завершить одну сессию (другое устройство)
+      parameters:
+        - { name: familyId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "204": { description: OK }
+        "404": { description: "Сессия не найдена" }
+
+  /auth/sessions/revoke-others:
+    post:
+      tags: [Auth]
+      summary: Выйти на всех других устройствах (текущее остаётся)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties: { revoked: { type: integer } }
+
   # ── Accounts ───────────────────────────────────────────────────────────
   /accounts:
     get:
