@@ -57,7 +57,8 @@ export async function register(input: RegisterInput, meta: SessionMeta = {}) {
     );
     const userId = userRes.rows[0].id;
     const refreshToken = generateRefreshToken();
-    await storeRefreshToken(client, userId, refreshToken);
+    // New login → new session family.
+    await storeRefreshToken(client, userId, refreshToken, crypto.randomUUID(), meta);
     await client.query('COMMIT');
 
     const accessToken = signAccessToken(userId);
@@ -117,7 +118,8 @@ export async function login(input: LoginInput, meta: SessionMeta = {}) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    await storeRefreshToken(client, user.id, refreshToken);
+    // New login → new session family.
+    await storeRefreshToken(client, user.id, refreshToken, crypto.randomUUID(), meta);
     await client.query('COMMIT');
   } finally {
     client.release();
