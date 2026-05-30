@@ -67,6 +67,8 @@ ehthumbs.db
 coverage/
 .nyc_output/
 *.lcov
+playwright-report/
+test-results/
 
 # ── Docker ──────────────────────────────────────────────────
 # Keep Dockerfiles but ignore local override

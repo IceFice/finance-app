@@ -1,0 +1,15 @@
+node_modules
+dist
+coverage
+.env
+.env.*
+*.log
+.git
+.gitignore
+Dockerfile
+.dockerignore
+*.test.ts
+*.test.tsx
+src/test
+playwright-report
+test-results
