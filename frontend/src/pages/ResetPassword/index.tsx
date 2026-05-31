@@ -8,7 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import api from '@/lib/api';
 import { Button } from '@/components/ui/Button';
-import { useToast } from '@/components/ui/Toast';
+import { useToast, extractApiError } from '@/components/ui/Toast';
 import { cn } from '@/lib/utils';
 
 const schema = z.object({
@@ -35,9 +35,7 @@ export default function ResetPasswordPage() {
       toast.showSuccess('Пароль обновлён — войдите с новым');
       navigate('/login', { replace: true });
     } catch (e: unknown) {
-      const msg = (e as { response?: { data?: { error?: { message?: string } } } })
-        ?.response?.data?.error?.message ?? 'Ссылка недействительна или истекла';
-      setError(msg);
+      setError(extractApiError(e, 'Ссылка недействительна или истекла'));
     }
   }
 

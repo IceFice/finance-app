@@ -1,5 +1,6 @@
 import { userQuery, withUserContext } from '../../db/context';
 import { NotFoundError, ForbiddenError } from '../../lib/errors';
+import { buildPartialUpdate } from '../../lib/sqlUpdate';
 import type { CreateCategoryInput, UpdateCategoryInput } from './categories.schema';
 
 interface CategoryRow {
@@ -46,18 +47,17 @@ export async function update(userId: string, categoryId: string, input: UpdateCa
       throw new ForbiddenError('Cannot edit system category');
     }
 
-    const fields: string[] = [];
-    const values: unknown[] = [];
-    let i = 1;
-    if (input.name !== undefined) { fields.push(`name = $${i++}`); values.push(input.name); }
-    if (input.type !== undefined) { fields.push(`type = $${i++}`); values.push(input.type); }
-    if (input.color !== undefined) { fields.push(`color = $${i++}`); values.push(input.color); }
-    if (input.icon !== undefined) { fields.push(`icon = $${i++}`); values.push(input.icon); }
-    if (input.sortOrder !== undefined) { fields.push(`sort_order = $${i++}`); values.push(input.sortOrder); }
-    if (fields.length === 0) return mapCategory(check.rows[0]);
-    values.push(categoryId);
+    const { setClause, values, nextParam } = buildPartialUpdate({
+      name: input.name,
+      type: input.type,
+      color: input.color,
+      icon: input.icon,
+      sort_order: input.sortOrder,
+    });
+    if (!setClause) return mapCategory(check.rows[0]);
     const res = await db.query<CategoryRow>(
-      `UPDATE categories SET ${fields.join(', ')} WHERE id = $${i} RETURNING *`, values
+      `UPDATE categories SET ${setClause} WHERE id = $${nextParam} RETURNING *`,
+      [...values, categoryId]
     );
     return mapCategory(res.rows[0]);
   });

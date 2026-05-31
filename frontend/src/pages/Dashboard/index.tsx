@@ -10,7 +10,8 @@ import {
 } from '@/hooks/useReports';
 import { useAuth } from '@/contexts/AuthContext';
 import { Skeleton } from '@/components/ui/Skeleton';
-import { formatMoney, sumMoney, cn } from '@/lib/utils';
+import { formatMoney, sumMoney, cn, initialOf, formatShortDate as formatShortDateUtil } from '@/lib/utils';
+import { hexA, shade, INCOME, EXPENSE, ACCENT } from '@/lib/colors';
 import {
   IconBell, IconChevL, IconChevR, IconWallet, IconChart,
 } from '@/components/layout/NavIcons';

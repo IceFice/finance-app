@@ -13,7 +13,7 @@ import { useUIStore } from '@/store/uiStore';
 import api from '@/lib/api';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { useToast } from '@/components/ui/Toast';
+import { useToast, extractApiError } from '@/components/ui/Toast';
 import { SessionsCard } from './SessionsCard';
 
 const passwordSchema = z.object({
@@ -68,8 +68,7 @@ export default function SettingsPage() {
       toast.showSuccess('Пароль изменён');
       reset();
     } catch (e: unknown) {
-      const msg = (e as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message
-        ?? 'Не удалось изменить пароль';
+      const msg = extractApiError(e, 'Не удалось изменить пароль');
       toast.showError(msg);
     } finally {
       setPwBusy(false);

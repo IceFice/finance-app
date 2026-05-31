@@ -21,7 +21,8 @@ import { Modal } from '@/components/ui/Modal';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import { QueryError } from '@/components/ui/QueryError';
 import { useToast } from '@/components/ui/Toast';
-import { formatMoney, cn } from '@/lib/utils';
+import { formatMoney, cn, compactMoney, initialOf, formatShortDate } from '@/lib/utils';
+import { hexA } from '@/lib/colors';
 import { format, differenceInCalendarDays } from 'date-fns';
 
 const FREQ_LABEL: Record<Frequency, string> = {

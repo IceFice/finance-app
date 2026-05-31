@@ -1,6 +1,7 @@
 import type { PoolClient } from 'pg';
 import { userQuery, withUserContext } from '../../db/context';
 import { NotFoundError } from '../../lib/errors';
+import { buildPartialUpdate } from '../../lib/sqlUpdate';
 import type { CreateGoalInput, UpdateGoalInput } from './goals.schema';
 
 interface GoalRow {
@@ -116,22 +117,19 @@ export async function update(userId: string, id: string, input: UpdateGoalInput)
       );
       if (a.rowCount === 0) throw new NotFoundError('Account');
     }
-    const fields: string[] = [];
-    const values: unknown[] = [];
-    let i = 1;
-    const push = (col: string, v: unknown) => { fields.push(`${col} = $${i++}`); values.push(v); };
-    if (input.name !== undefined) push('name', input.name);
-    if (input.targetAmount !== undefined) push('target_amount', input.targetAmount);
-    if (input.currentAmount !== undefined) push('current_amount', input.currentAmount);
-    if (input.currency !== undefined) push('currency', input.currency);
-    if (input.deadline !== undefined) push('deadline', input.deadline);
-    if (input.sourceAccountId !== undefined) push('source_account_id', input.sourceAccountId);
-    if (input.color !== undefined) push('color', input.color);
-    if (input.icon !== undefined) push('icon', input.icon);
-    if (input.isActive !== undefined) push('is_active', input.isActive);
-    if (fields.length === 0) return getByIdOnClient(db, id);
-    values.push(id);
-    await db.query(`UPDATE savings_goals SET ${fields.join(', ')} WHERE id = $${i}`, values);
+    const { setClause, values, nextParam } = buildPartialUpdate({
+      name: input.name,
+      target_amount: input.targetAmount,
+      current_amount: input.currentAmount,
+      currency: input.currency,
+      deadline: input.deadline,
+      source_account_id: input.sourceAccountId,
+      color: input.color,
+      icon: input.icon,
+      is_active: input.isActive,
+    });
+    if (!setClause) return getByIdOnClient(db, id);
+    await db.query(`UPDATE savings_goals SET ${setClause} WHERE id = $${nextParam}`, [...values, id]);
     return getByIdOnClient(db, id);
   });
 }

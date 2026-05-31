@@ -2,6 +2,7 @@ import type { PoolClient } from 'pg';
 import { pool } from '../../db/pool';
 import { userQuery, withUserContext } from '../../db/context';
 import { NotFoundError } from '../../lib/errors';
+import { buildPartialUpdate } from '../../lib/sqlUpdate';
 import type { CreateRecurringInput, UpdateRecurringInput, Frequency } from './recurring.schema';
 
 interface Row {
@@ -113,24 +114,21 @@ export async function update(userId: string, id: string, input: UpdateRecurringI
   return withUserContext(userId, async (db) => {
     const check = await db.query(`SELECT 1 FROM recurring_transactions WHERE id = $1`, [id]);
     if (check.rowCount === 0) throw new NotFoundError('Recurring');
-    const fields: string[] = [];
-    const values: unknown[] = [];
-    let i = 1;
-    const push = (col: string, v: unknown) => { fields.push(`${col} = $${i++}`); values.push(v); };
-    if (input.accountId !== undefined) push('account_id', input.accountId);
-    if (input.categoryId !== undefined) push('category_id', input.categoryId);
-    if (input.amount !== undefined) push('amount', input.amount);
-    if (input.currency !== undefined) push('currency', input.currency);
-    if (input.type !== undefined) push('type', input.type);
-    if (input.description !== undefined) push('description', input.description);
-    if (input.merchant !== undefined) push('merchant', input.merchant);
-    if (input.frequency !== undefined) push('frequency', input.frequency);
-    if (input.startDate !== undefined) push('start_date', input.startDate);
-    if (input.endDate !== undefined) push('end_date', input.endDate);
-    if (input.isActive !== undefined) push('is_active', input.isActive);
-    if (fields.length === 0) return getByIdOnClient(db, id);
-    values.push(id);
-    await db.query(`UPDATE recurring_transactions SET ${fields.join(', ')} WHERE id = $${i}`, values);
+    const { setClause, values, nextParam } = buildPartialUpdate({
+      account_id: input.accountId,
+      category_id: input.categoryId,
+      amount: input.amount,
+      currency: input.currency,
+      type: input.type,
+      description: input.description,
+      merchant: input.merchant,
+      frequency: input.frequency,
+      start_date: input.startDate,
+      end_date: input.endDate,
+      is_active: input.isActive,
+    });
+    if (!setClause) return getByIdOnClient(db, id);
+    await db.query(`UPDATE recurring_transactions SET ${setClause} WHERE id = $${nextParam}`, [...values, id]);
     return getByIdOnClient(db, id);
   });
 }

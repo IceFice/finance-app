@@ -18,6 +18,7 @@ import { Modal } from '@/components/ui/Modal';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import { QueryError } from '@/components/ui/QueryError';
 import { formatMoney, cn } from '@/lib/utils';
+import { hexA } from '@/lib/colors';
 
 const ACCENT = '#6366F1';
 const ICONS = ['🐷', '🎯', '🏖️', '🚗', '🏠', '💍', '🎓', '💻', '🎁', '✈️', '📱', '🛋️'];
@@ -38,10 +39,6 @@ const schema = z.object({
 });
 type FormData = z.infer<typeof schema>;
 
-function hexA(hex: string, a: number): string {
-  const h = hex.replace('#', '');
-  return `rgba(${parseInt(h.slice(0,2),16)},${parseInt(h.slice(2,4),16)},${parseInt(h.slice(4,6),16)},${a})`;
-}
 
 function Dial({ pct, color, size = 96 }: { pct: number; color: string; size?: number }) {
   const stroke = 9;

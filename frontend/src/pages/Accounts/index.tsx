@@ -22,12 +22,11 @@ import { Button } from '@/components/ui/Button';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import { Modal } from '@/components/ui/Modal';
 import { QueryError } from '@/components/ui/QueryError';
-import { formatMoney, sumMoney, cn } from '@/lib/utils';
+import { formatMoney, sumMoney, cn, compactMoney, initialOf, formatShortDate } from '@/lib/utils';
+import { hexA, shade, INCOME, EXPENSE, ACCENT } from '@/lib/colors';
+import { extractApiError } from '@/components/ui/Toast';
 
 // ─── Constants (mirrors design source) ─────────────────────────────────────
-const INCOME = '#22C55E';
-const EXPENSE = '#EF4444';
-const ACCENT = '#6366F1';
 const SAVINGS_GOAL = 80000;
 
 const ACCOUNT_TYPES = [
@@ -44,42 +43,8 @@ const TYPE_ICON: Record<string, string> = {
   cash: '💵', investment: '📈', loan: '📉',
 };
 
-// ─── Pure helpers ──────────────────────────────────────────────────────────
-function hexA(hex: string, a: number): string {
-  const h = hex.replace('#', '');
-  const r = parseInt(h.slice(0, 2), 16);
-  const g = parseInt(h.slice(2, 4), 16);
-  const b = parseInt(h.slice(4, 6), 16);
-  return `rgba(${r},${g},${b},${a})`;
-}
-function shade(hex: string, percent: number): string {
-  const h = hex.replace('#', '');
-  const num = parseInt(h, 16);
-  const amt = Math.round(2.55 * percent);
-  const R = (num >> 16) + amt;
-  const G = ((num >> 8) & 0xff) + amt;
-  const B = (num & 0xff) + amt;
-  const clamp = (n: number) => Math.max(0, Math.min(255, n));
-  return '#' + (0x1000000 + clamp(R) * 0x10000 + clamp(G) * 0x100 + clamp(B)).toString(16).slice(1);
-}
-function compactMoney(n: number, currency = 'RUB'): string {
-  const abs = Math.abs(n);
-  let s: string;
-  if (abs >= 1_000_000) s = (n / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M';
-  else if (abs >= 1000) s = (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
-  else s = String(Math.round(n));
-  const sym = currency === 'USD' ? '$' : currency === 'EUR' ? '€' : '₽';
-  return currency === 'RUB' ? `${s} ${sym}` : `${sym}${s}`;
-}
-function initialOf(s: string | null | undefined): string {
-  return (s || '?').trim().slice(0, 1).toUpperCase();
-}
-function shortDate(iso: string): string {
-  const MONTHS = ['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  return `${d.getDate()} ${MONTHS[d.getMonth()]}`;
-}
+// shortDate is the project-wide formatShortDate, aliased to keep call sites.
+const shortDate = formatShortDate;
 // Deterministic synthetic balance sparkline so the visual is stable across
 // renders without persisting historical balances yet.
 function syntheticPoints(seed: string, end: number): number[] {
@@ -587,8 +552,7 @@ export default function AccountsPage() {
       setXferOK(true);
       setTimeout(() => setXferOK(false), 3000);
     } catch (e: unknown) {
-      const msg = (e as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message
-        ?? 'Не удалось выполнить перевод';
+      const msg = extractApiError(e, 'Не удалось выполнить перевод');
       setXferError(msg);
     }
   }

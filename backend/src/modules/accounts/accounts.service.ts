@@ -1,5 +1,6 @@
 import { userQuery, withUserContext } from '../../db/context';
 import { NotFoundError } from '../../lib/errors';
+import { buildPartialUpdate } from '../../lib/sqlUpdate';
 import type { CreateAccountInput, UpdateAccountInput } from './accounts.schema';
 
 interface AccountRow {

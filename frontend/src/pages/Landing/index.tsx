@@ -8,20 +8,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-
-const ACCENT = '#6366F1';
-const INCOME = '#22C55E';
-const EXPENSE = '#EF4444';
-const WARN = '#F59E0B';
-const PINK = '#EC4899';
-const SKY = '#0EA5E9';
-const VIOLET = '#A855F7';
-
-// ── Tiny utility for color overlay ──────────────────────────────────────────
-function hexA(hex: string, a: number): string {
-  const h = hex.replace('#', '');
-  return `rgba(${parseInt(h.slice(0,2),16)},${parseInt(h.slice(2,4),16)},${parseInt(h.slice(4,6),16)},${a})`;
-}
+import { hexA, ACCENT, INCOME, EXPENSE, WARN, PINK } from '@/lib/colors';
 
 // ── Reusable bits ───────────────────────────────────────────────────────────
 function Eyebrow({ children, dark }: { children: React.ReactNode; dark?: boolean }) {

@@ -8,7 +8,7 @@ import { useMemo, useRef, useState } from 'react';
 import { useAccounts } from '@/hooks/useAccounts';
 import { useCategoriesCrud } from '@/hooks/useCategories';
 import { useImportTransactions, ImportRow, ImportResult } from '@/hooks/useTransactions';
-import { useToast } from '@/components/ui/Toast';
+import { useToast, extractApiError } from '@/components/ui/Toast';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { parseCSV, parseDate, parseAmount } from '@/lib/csv';
@@ -157,8 +157,7 @@ export default function ImportPage() {
       setResult(res);
       toast.showSuccess(`Готово: добавлено ${res.inserted}, пропущено ${res.skipped}`);
     } catch (e: unknown) {
-      const msg = (e as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message
-        ?? 'Не удалось импортировать';
+      const msg = extractApiError(e, 'Не удалось импортировать');
       toast.showError(msg);
     }
   }
