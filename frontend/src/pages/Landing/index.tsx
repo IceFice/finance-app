@@ -8,7 +8,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { hexA, ACCENT, INCOME, EXPENSE, WARN, PINK } from '@/lib/colors';
+import { hexA, ACCENT, INCOME, EXPENSE, WARN, PINK, SKY, VIOLET } from '@/lib/colors';
 
 // ── Reusable bits ───────────────────────────────────────────────────────────
 function Eyebrow({ children, dark }: { children: React.ReactNode; dark?: boolean }) {

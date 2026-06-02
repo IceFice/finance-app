@@ -95,7 +95,7 @@ export function useToast(): ToastContextValue {
   return ctx;
 }
 
-export function extractApiError(err: unknown): string {
+export function extractApiError(err: unknown, fallback?: string): string {
   if (err && typeof err === 'object' && 'response' in err) {
     const response = (err as { response?: { data?: { error?: { message?: string } } } }).response;
     const msg = response?.data?.error?.message;
@@ -107,6 +107,7 @@ export function extractApiError(err: unknown): string {
     if (status === 429) return 'Слишком много запросов, попробуйте позже';
     if (status && status >= 500) return 'Ошибка сервера, попробуйте позже';
   }
+  if (fallback) return fallback;
   if (err instanceof Error) return err.message;
   return 'Произошла неизвестная ошибка';
 }

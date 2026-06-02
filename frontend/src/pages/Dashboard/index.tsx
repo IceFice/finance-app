@@ -10,7 +10,7 @@ import {
 } from '@/hooks/useReports';
 import { useAuth } from '@/contexts/AuthContext';
 import { Skeleton } from '@/components/ui/Skeleton';
-import { formatMoney, sumMoney, cn, initialOf, formatShortDate as formatShortDateUtil } from '@/lib/utils';
+import { formatMoney, sumMoney, cn, initialOf, formatShortDate } from '@/lib/utils';
 import { hexA, shade, INCOME, EXPENSE, ACCENT } from '@/lib/colors';
 import {
   IconBell, IconChevL, IconChevR, IconWallet, IconChart,
@@ -18,37 +18,6 @@ import {
 
 // ───────────────────────── Helpers ─────────────────────────
 const MONTHS_RU = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
-const SHORT_MONTH = ['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
-
-function formatShortDate(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  return `${d.getDate()} ${SHORT_MONTH[d.getMonth()]}`;
-}
-function initialOf(s: string | null | undefined): string {
-  return (s || '?').trim().slice(0, 1).toUpperCase();
-}
-function hexA(hex: string, a: number): string {
-  const h = hex.replace('#', '');
-  const r = parseInt(h.slice(0, 2), 16);
-  const g = parseInt(h.slice(2, 4), 16);
-  const b = parseInt(h.slice(4, 6), 16);
-  return `rgba(${r},${g},${b},${a})`;
-}
-function shade(hex: string, percent: number): string {
-  const h = hex.replace('#', '');
-  const num = parseInt(h, 16);
-  const amt = Math.round(2.55 * percent);
-  const R = (num >> 16) + amt;
-  const G = ((num >> 8) & 0xff) + amt;
-  const B = (num & 0xff) + amt;
-  const clamp = (n: number) => Math.max(0, Math.min(255, n));
-  return '#' + (0x1000000 + clamp(R) * 0x10000 + clamp(G) * 0x100 + clamp(B)).toString(16).slice(1);
-}
-
-const INCOME = '#22C55E';
-const EXPENSE = '#EF4444';
-const ACCENT = '#6366F1';
 
 // ───────────────────────── Sub-components ─────────────────────────
 

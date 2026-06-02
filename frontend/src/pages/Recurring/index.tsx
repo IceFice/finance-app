@@ -21,7 +21,7 @@ import { Modal } from '@/components/ui/Modal';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import { QueryError } from '@/components/ui/QueryError';
 import { useToast } from '@/components/ui/Toast';
-import { formatMoney, cn, compactMoney, initialOf, formatShortDate } from '@/lib/utils';
+import { formatMoney, cn, initialOf, formatShortDate } from '@/lib/utils';
 import { hexA } from '@/lib/colors';
 import { format, differenceInCalendarDays } from 'date-fns';
 
@@ -47,20 +47,6 @@ const schema = z.object({
   isActive: z.boolean().optional(),
 });
 type FormData = z.infer<typeof schema>;
-
-function initialOf(s: string | null | undefined): string {
-  return (s || '?').trim().slice(0, 1).toUpperCase();
-}
-function shortDate(iso: string): string {
-  const MONTHS = ['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  return `${d.getDate()} ${MONTHS[d.getMonth()]}`;
-}
-function hexA(hex: string, a: number): string {
-  const h = hex.replace('#', '');
-  return `rgba(${parseInt(h.slice(0,2),16)},${parseInt(h.slice(2,4),16)},${parseInt(h.slice(4,6),16)},${a})`;
-}
 
 function RecCard({
   r, onEdit, onDelete, onToggle,
@@ -123,8 +109,8 @@ function RecCard({
 
       <div className="mt-3 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
         <div>
-          Следующий: <span className="font-medium text-gray-700 dark:text-gray-300 tabular-nums">{shortDate(r.nextDueDate)}</span>
-          {r.endDate && <span> · до {shortDate(r.endDate)}</span>}
+          Следующий: <span className="font-medium text-gray-700 dark:text-gray-300 tabular-nums">{formatShortDate(r.nextDueDate)}</span>
+          {r.endDate && <span> · до {formatShortDate(r.endDate)}</span>}
         </div>
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           <button

@@ -46,3 +46,24 @@ export function formatDate(date: string, fmt = 'd MMM yyyy'): string {
 export function formatShortDate(date: string): string {
   return formatDate(date, 'd MMM');
 }
+
+// ── Presentational helpers (were duplicated across pages) ────────────────────
+
+/** First grapheme of a label, uppercased — used for avatar / initial chips. */
+export function initialOf(s: string | null | undefined): string {
+  return (s || '?').trim().slice(0, 1).toUpperCase();
+}
+
+/** Compact money: 1 234 → "1.2K", 1 200 000 → "1.2M". RUB ₽ suffix,
+ *  $/€ prefix for foreign. Used where space is tight (cards, chips). */
+export function compactMoney(amount: string | number, currency = 'RUB'): string {
+  const n = typeof amount === 'string' ? Number(amount) : amount;
+  const v = Number.isFinite(n) ? n : 0;
+  const abs = Math.abs(v);
+  let s: string;
+  if (abs >= 1_000_000) s = (v / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M';
+  else if (abs >= 1_000) s = (v / 1_000).toFixed(1).replace(/\.0$/, '') + 'K';
+  else s = String(Math.round(v));
+  const sym = currency === 'USD' ? '$' : currency === 'EUR' ? '€' : '₽';
+  return currency === 'RUB' ? `${s} ${sym}` : `${sym}${s}`;
+}

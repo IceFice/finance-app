@@ -56,22 +56,20 @@ export async function update(userId: string, accountId: string, input: UpdateAcc
     );
     if (!check.rows[0]) throw new NotFoundError('Account');
 
-    const fields: string[] = [];
-    const values: unknown[] = [];
-    let i = 1;
-    if (input.name !== undefined) { fields.push(`name = $${i++}`); values.push(input.name); }
-    if (input.type !== undefined) { fields.push(`type = $${i++}`); values.push(input.type); }
-    if (input.currency !== undefined) { fields.push(`currency = $${i++}`); values.push(input.currency); }
-    if (input.balance !== undefined) { fields.push(`balance = $${i++}`); values.push(input.balance); }
-    if (input.color !== undefined) { fields.push(`color = $${i++}`); values.push(input.color); }
-    if (input.icon !== undefined) { fields.push(`icon = $${i++}`); values.push(input.icon); }
-    if (fields.length === 0) return mapAccount(check.rows[0]);
-    values.push(accountId);
+    const { setClause, values, nextParam } = buildPartialUpdate({
+      name: input.name,
+      type: input.type,
+      currency: input.currency,
+      balance: input.balance,
+      color: input.color,
+      icon: input.icon,
+    });
+    if (!setClause) return mapAccount(check.rows[0]);
+    // RLS guarantees only the owner's row is affected; the id WHERE is the
+    // explicit selector.
     const res = await db.query<AccountRow>(
-      // RLS guarantees only the owner's row is affected; user_id added as
-      // explicit defence-in-depth.
-      `UPDATE accounts SET ${fields.join(', ')} WHERE id = $${i} RETURNING *`,
-      values
+      `UPDATE accounts SET ${setClause} WHERE id = $${nextParam} RETURNING *`,
+      [...values, accountId]
     );
     return mapAccount(res.rows[0]);
   });
