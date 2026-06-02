@@ -266,15 +266,23 @@ export async function createTransfer(userId: string, input: CreateTransferInput)
     await assertOwnedAccount(db, input.fromAccountId);
     await assertOwnedAccount(db, input.toAccountId);
 
+    // A transfer is two linked rows. The balance trigger
+    // (fn_update_account_balance) only adds for type='credit' and subtracts
+    // for everything else — so BOTH rows being 'transfer' drained both
+    // accounts. The money side must use the real debit/credit types:
+    //   - source account  → 'debit'  (−amount)
+    //   - target account   → 'credit' (+amount)
+    // transfer_pair_id still links the two so the UI can render them as a
+    // transfer and delete them together.
     const debitRes = await db.query<{ id: string }>(
       `INSERT INTO transactions (user_id, account_id, amount, currency, type, description, date)
-       VALUES ($1,$2,$3,$4,'transfer',$5,$6) RETURNING id`,
+       VALUES ($1,$2,$3,$4,'debit',$5,$6) RETURNING id`,
       [userId, input.fromAccountId, input.amount, input.currency, input.description ?? 'Transfer', input.date]
     );
     const debitId = debitRes.rows[0].id;
     const creditRes = await db.query<{ id: string }>(
       `INSERT INTO transactions (user_id, account_id, amount, currency, type, description, date, transfer_pair_id)
-       VALUES ($1,$2,$3,$4,'transfer',$5,$6,$7) RETURNING id`,
+       VALUES ($1,$2,$3,$4,'credit',$5,$6,$7) RETURNING id`,
       [userId, input.toAccountId, input.amount, input.currency, input.description ?? 'Transfer', input.date, debitId]
     );
     const creditId = creditRes.rows[0].id;

@@ -307,7 +307,11 @@ export default function DashboardPage() {
   const to   = format(monthEnd,   'yyyy-MM-dd');
 
   const { data: accounts } = useAccounts();
-  const { data: txPages }  = useTransactions({ from, to });
+  // "Последние операции" must show the newest transactions regardless of the
+  // selected month — use an UNFILTERED query (no from/to). Filtering by the
+  // dashboard's month window caused new ops to appear here but not on the
+  // Operations page (which uses a rolling −30d window) and vice-versa.
+  const { data: txPages }  = useTransactions({});
   const { data: budgets }  = useBudgets();
   const { data: rawSum }   = useReportsMonthlySummary({ from, to });
   const { data: rawCat }   = useReportsSpendingByCategory({ from, to });

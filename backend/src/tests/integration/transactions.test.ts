@@ -245,8 +245,39 @@ describe('POST /api/v1/transactions/transfer', () => {
 
     expect(debitRow.rows[0].transfer_pair_id).toBe(creditId);
     expect(creditRow.rows[0].transfer_pair_id).toBe(debitId);
-    expect(debitRow.rows[0].type).toBe('transfer');
-    expect(creditRow.rows[0].type).toBe('transfer');
+    // The money legs use real debit/credit types so the balance trigger
+    // moves money correctly (−from / +to). They're flagged as a transfer
+    // pair via transfer_pair_id, not via type.
+    expect(debitRow.rows[0].type).toBe('debit');
+    expect(debitRow.rows[0].account_id).toBe(fromAccountId);
+    expect(creditRow.rows[0].type).toBe('credit');
+    expect(creditRow.rows[0].account_id).toBe(toAccountId);
+  });
+
+  it('moves money: source balance drops, target rises by amount', async () => {
+    const { pool } = await import('../../db/pool');
+    const before = await pool.query<{ id: string; balance: string }>(
+      `SELECT id, balance FROM accounts WHERE id = ANY($1::uuid[])`,
+      [[fromAccountId, toAccountId]],
+    );
+    const fromBefore = Number(before.rows.find(r => r.id === fromAccountId)!.balance);
+    const toBefore   = Number(before.rows.find(r => r.id === toAccountId)!.balance);
+
+    await request(app)
+      .post('/api/v1/transactions/transfer')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ fromAccountId, toAccountId, amount: '300.00', currency: 'USD', date: '2024-03-22' })
+      .expect(201);
+
+    const after = await pool.query<{ id: string; balance: string }>(
+      `SELECT id, balance FROM accounts WHERE id = ANY($1::uuid[])`,
+      [[fromAccountId, toAccountId]],
+    );
+    const fromAfter = Number(after.rows.find(r => r.id === fromAccountId)!.balance);
+    const toAfter   = Number(after.rows.find(r => r.id === toAccountId)!.balance);
+
+    expect(fromAfter).toBeCloseTo(fromBefore - 300, 2);
+    expect(toAfter).toBeCloseTo(toBefore + 300, 2);
   });
 
   it('returns 400 when fromAccountId === toAccountId', async () => {

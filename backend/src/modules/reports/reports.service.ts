@@ -15,7 +15,7 @@ export async function monthlySummary(userId: string, from: string, to: string) {
        COUNT(*)::TEXT AS tx_count
      FROM transactions
      WHERE user_id = $1 AND date BETWEEN $2 AND $3
-       AND deleted_at IS NULL AND type != 'transfer'
+       AND deleted_at IS NULL AND transfer_pair_id IS NULL
      GROUP BY date_trunc('month', date)
      ORDER BY month ASC`,
     [userId, from, to]
@@ -42,7 +42,7 @@ export async function spendingByCategory(userId: string, from: string, to: strin
      FROM transactions t
      JOIN categories c ON c.id = t.category_id
      WHERE t.user_id = $1 AND t.date BETWEEN $2 AND $3
-       AND t.deleted_at IS NULL AND t.type != 'transfer'
+       AND t.deleted_at IS NULL AND t.transfer_pair_id IS NULL
      GROUP BY c.id, c.name, c.color, c.type
      ORDER BY total DESC`,
     [userId, from, to]
@@ -90,7 +90,7 @@ export async function cashFlow(userId: string, from: string, to: string, granula
        )::NUMERIC(15,2)::TEXT AS net
      FROM periods p
      LEFT JOIN transactions t ON date_trunc($4, t.date) = p.period
-       AND t.user_id = $1 AND t.deleted_at IS NULL AND t.type != 'transfer'
+       AND t.user_id = $1 AND t.deleted_at IS NULL AND t.transfer_pair_id IS NULL
      GROUP BY p.period
      ORDER BY p.period ASC`,
     [userId, from, to, granularity, interval]
@@ -117,6 +117,7 @@ export async function budgetVsActual(userId: string, from: string, to: string) {
      LEFT JOIN transactions t ON
        (b.category_id IS NULL OR t.category_id = b.category_id)
        AND t.user_id = b.user_id AND t.type = 'debit'
+       AND t.transfer_pair_id IS NULL
        AND t.deleted_at IS NULL AND t.date BETWEEN $2 AND $3
      WHERE b.user_id = $1 AND b.is_active = true
      GROUP BY b.id, b.name, b.category_id, c.name, c.color, b.amount
