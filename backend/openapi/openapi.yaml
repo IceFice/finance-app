@@ -447,14 +447,6 @@ paths:
         - { name: to,          in: query, required: true,  schema: { type: string, format: date } }
         - { name: granularity, in: query, required: false, schema: { type: string, enum: [day, week, month], default: month } }
       responses: { "200": { description: OK } }
-  /reports/budget-vs-actual:
-    get:
-      tags: [Reports]
-      summary: Сравнение бюджет vs факт по категориям
-      parameters:
-        - { name: from, in: query, required: true, schema: { type: string, format: date } }
-        - { name: to,   in: query, required: true, schema: { type: string, format: date } }
-      responses: { "200": { description: OK } }
 
   # ── Goals ──────────────────────────────────────────────────────────────
   /goals:

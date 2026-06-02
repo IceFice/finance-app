@@ -27,13 +27,6 @@ export function useReportsCashFlow(range: DateRange & { granularity?: string }) 
   });
 }
 
-export function useReportsBudgetVsActual(range: DateRange) {
-  return useQuery({
-    queryKey: ['reports', 'budget-vs-actual', range],
-    queryFn: async () => (await api.get(`/reports/budget-vs-actual?from=${range.from}&to=${range.to}`)).data.data,
-    enabled: !!range.from && !!range.to,
-  });
-}
 
 export function useCategories() {
   return useQuery({

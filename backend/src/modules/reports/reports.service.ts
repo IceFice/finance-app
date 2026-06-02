@@ -100,29 +100,3 @@ export async function cashFlow(userId: string, from: string, to: string, granula
   return Object.assign(res.rows, { granularity });
 }
 
-export async function budgetVsActual(userId: string, from: string, to: string) {
-  const res = await userQuery<{
-    budget_id: string; budget_name: string; category_id: string | null;
-    category_name: string | null; category_color: string | null;
-    budget: string; actual: string;
-  }>(
-    userId,
-    `SELECT
-       b.id AS budget_id, b.name AS budget_name,
-       b.category_id, c.name AS category_name, c.color AS category_color,
-       b.amount::TEXT AS budget,
-       COALESCE(SUM(ABS(t.amount_base)), 0)::NUMERIC(15,2)::TEXT AS actual
-     FROM budgets b
-     LEFT JOIN categories c ON c.id = b.category_id
-     LEFT JOIN transactions t ON
-       (b.category_id IS NULL OR t.category_id = b.category_id)
-       AND t.user_id = b.user_id AND t.type = 'debit'
-       AND t.transfer_pair_id IS NULL
-       AND t.deleted_at IS NULL AND t.date BETWEEN $2 AND $3
-     WHERE b.user_id = $1 AND b.is_active = true
-     GROUP BY b.id, b.name, b.category_id, c.name, c.color, b.amount
-     ORDER BY b.name ASC`,
-    [userId, from, to]
-  );
-  return { categories: res.rows };
-}

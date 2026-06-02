@@ -29,8 +29,3 @@ reportsRouter.get('/cash-flow', asyncHandler(async (req: Request, res: Response)
   const granularity = z.enum(['day', 'week', 'month']).default('month').parse(req.query.granularity);
   sendSuccess(res, await reportsService.cashFlow(req.userId, from, to, granularity));
 }));
-
-reportsRouter.get('/budget-vs-actual', asyncHandler(async (req: Request, res: Response) => {
-  const { from, to } = dateRangeSchema.parse(req.query);
-  sendSuccess(res, await reportsService.budgetVsActual(req.userId, from, to));
-}));
