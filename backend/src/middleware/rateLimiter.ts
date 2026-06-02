@@ -100,8 +100,15 @@ export const generalLimiter = rateLimiter({
   keyFn: (req) => `rl:general:${(req as Request & { userId?: string }).userId ?? req.ip}`,
 });
 
+// Reports are read-only SQL aggregates. The page is interactive: the hero
+// KPIs alone fire 4 requests (monthly-summary + spending-by-category for the
+// current AND previous period), and each of the 4 tabs fires 1-4 more — so a
+// single page visit is ~6-8 requests, and switching period/tab multiplies it.
+// A 30/hour cap (the old value) ran out after ~4 page loads → spurious 429s.
+// 120/min is a per-minute window with comfortable headroom for normal use
+// while still throttling abusive bursts of expensive aggregation queries.
 export const reportsLimiter = rateLimiter({
-  windowSec: 3600,
-  max: 30,
+  windowSec: 60,
+  max: 120,
   keyFn: (req) => `rl:reports:${(req as Request & { userId?: string }).userId ?? req.ip}`,
 });
