@@ -38,19 +38,35 @@ jobs:
           node-version: 20
           cache: npm
 
-      - name: Audit backend dependencies
+      # The gate fails the build only on high/critical vulns in PRODUCTION
+      # dependencies (--omit=dev) — those are what actually ship in the
+      # Docker image (built with `npm ci --omit=dev`). Dev-only tooling
+      # (vitest/esbuild advisories that require a running test-UI server we
+      # never start) is audited separately as a non-blocking report so it
+      # stays visible without blocking deploys on irrelevant findings.
+      - name: Audit backend dependencies (production)
         working-directory: backend
         run: |
           npm ci --ignore-scripts
-          npm audit --audit-level=high --json | tee audit-backend.json
-          npm audit --audit-level=high
+          npm audit --omit=dev --audit-level=high --json | tee audit-backend.json
+          npm audit --omit=dev --audit-level=high
 
-      - name: Audit frontend dependencies
+      - name: Audit backend dev dependencies (report-only)
+        working-directory: backend
+        continue-on-error: true
+        run: npm audit --audit-level=high
+
+      - name: Audit frontend dependencies (production)
         working-directory: frontend
         run: |
           npm ci --ignore-scripts
-          npm audit --audit-level=high --json | tee audit-frontend.json
-          npm audit --audit-level=high
+          npm audit --omit=dev --audit-level=high --json | tee audit-frontend.json
+          npm audit --omit=dev --audit-level=high
+
+      - name: Audit frontend dev dependencies (report-only)
+        working-directory: frontend
+        continue-on-error: true
+        run: npm audit --audit-level=high
 
       - name: Upload audit reports
         if: always()
